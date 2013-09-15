@@ -1,6 +1,6 @@
 public class HostInfo{
     public String host;
-    public int port;
-    public int jobCount;
+    public Integer port;
+    public Integer jobCount;
     public long lastTime;
 }
