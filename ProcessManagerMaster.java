@@ -52,7 +52,7 @@ public class ProcessManagerMaster extends ProcessManager{
         //heartbeat
         long curTime=System.currentTimeMillis();
         
-    	System.out.println("Checker:"+curTime/1000);
+    	//System.out.println("Checker:"+curTime/1000);
 
 		while (true) {
 			try {
@@ -65,7 +65,7 @@ public class ProcessManagerMaster extends ProcessManager{
         for(Iterator<HostInfo> it=hostInfoList.iterator();it.hasNext();){
             HostInfo hostp=it.next();
             if(curTime-hostp.lastTime>MasterPeriod){
-                System.out.println(hostp.host+"(slave) is unreachable.");
+                System.out.println(hostp.host+":"+hostp.port+" (slave) is unreachable.");
                 it.remove();
             }
         }
@@ -80,7 +80,9 @@ public class ProcessManagerMaster extends ProcessManager{
 				e.printStackTrace();
 			}
 		}
-        while(true){
+        
+		//while(true){ // do not try to balance at one time.
+		for(int i=0;i<1;i++){
             int minCount=9999,maxCount=-1;
             HostInfo minHost=null,maxHost=null;
 

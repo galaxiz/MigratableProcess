@@ -109,6 +109,11 @@ public class ProcessManagerSlave extends ProcessManager {
 	void heartbeatSender() {
 		// to do
 
+		// heartbeat
+		HeartbeatMsg beat = new HeartbeatMsg();
+		beat.type = HeartbeatMsg.Type.normal;
+		beat.port = listenerPort;
+
 		// check whether job is done.
 		try {
 			jobInfoMutex.acquire();
@@ -121,14 +126,11 @@ public class ProcessManagerSlave extends ProcessManager {
 				it.remove();
 			}
 		}
-		jobInfoMutex.release();
-
-		// heartbeat
-		HeartbeatMsg beat = new HeartbeatMsg();
-		beat.type = HeartbeatMsg.Type.normal;
-		beat.port = listenerPort;
+		
 		beat.jobCount = jobInfoList.size();
 
+		jobInfoMutex.release();
+		
 		sendObjectTo(host, 9000, beat);
 	}
 
@@ -195,10 +197,12 @@ public class ProcessManagerSlave extends ProcessManager {
 				out.writeObject(cm);
 				out.flush();
 
+				System.out.println("Starting to read job");
 				ObjectInputStream jobIn = new ObjectInputStream(
 						jobSocket.getInputStream());
 				MigratableProcess job = (MigratableProcess) jobIn.readObject();
-
+				
+				System.out.println("Starting to resume job");
 				resumeJob(job);
 				break;
 			case waitJob:
@@ -206,10 +210,11 @@ public class ProcessManagerSlave extends ProcessManager {
 				JobInfo jobInfo = jobInfoList.get(new Random()
 						.nextInt(jobInfoList.size()));
 
+				System.out.println("Starting to send job");
 				if (sendJob(socket, jobInfo)) {
 					jobInfoList.remove(jobInfo);
 				}
-				
+				System.out.println("End of sending job");
 				jobInfoMutex.release();
 				break;
 			default:
