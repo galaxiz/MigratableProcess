@@ -1,3 +1,6 @@
+/**
+ * @author Xi Zhao 
+ */
 public class HostInfo{
     public String host;
     public Integer port;

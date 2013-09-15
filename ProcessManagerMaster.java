@@ -5,7 +5,7 @@ import java.util.*;
 import java.net.*;
 import java.util.concurrent.*;
 
-/* Class ProcessManagerMaster
+/**
  * @author Xi Zhao
  */
 public class ProcessManagerMaster extends ProcessManager{

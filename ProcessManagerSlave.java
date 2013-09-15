@@ -5,7 +5,7 @@ import java.util.*;
 import java.net.*;
 import java.util.concurrent.*;
 
-/* Class ProcessManagerSlave
+/**
  * @author Xi Zhao
  */
 public class ProcessManagerSlave extends ProcessManager{
@@ -73,6 +73,23 @@ public class ProcessManagerSlave extends ProcessManager{
 
     void heartbeatSender(){
         //to do
+    	
+    	//check whether job is done.
+    	try{
+    		jobInfoMutex.acquire();
+    	}
+    	catch(InterruptedException e){
+    		e.printStackTrace();
+    	}
+    	for(Iterator<JobInfo> it=jobInfoList.iterator();it.hasNext();){
+    		JobInfo jobInfop=it.next();
+    		if(jobInfop.thread.isAlive()==false){
+    			it.remove();
+    		}
+    	}
+    	jobInfoMutex.release();
+    	
+    	//heartbeat
         HeartbeatMsg beat=new HeartbeatMsg();
         beat.type=HeartbeatMsg.Type.normal;
         beat.jobCount=jobInfoList.size();
@@ -85,15 +102,15 @@ public class ProcessManagerSlave extends ProcessManager{
             JobInfo jobInfo=new JobInfo();
 
             Class jobClass=Class.forName(command);
-            MigratableProcess job=(MigratableProcess) jobClass.getConstructor(String[].class).newInstance(args);
+            MigratableProcess job=(MigratableProcess) jobClass.getConstructor(String[].class).newInstance((Object)args);
 
             jobInfo.job=job;
+            jobInfo.thread=new Thread((Runnable)job);
             
             jobInfoMutex.acquire();
             jobInfoList.add(jobInfo);
+            jobInfo.thread.start();
             jobInfoMutex.release();
-
-            new Thread((Runnable)job).start();
         }catch(Exception e){
             //to do different exceptions
             e.printStackTrace();
@@ -141,11 +158,11 @@ public class ProcessManagerSlave extends ProcessManager{
                     
                     resumeJob(job);
                     break;
-                case waitJob:
-                    JobInfo jobInfo=jobInfoList.get(new Random().nextInt(jobInfoList.size()));
-                    sendJob(socket,jobInfo);
-                    
+                case waitJob:                
                     jobInfoMutex.acquire();
+                	JobInfo jobInfo=jobInfoList.get(new Random().nextInt(jobInfoList.size()));
+                    sendJob(socket,jobInfo);                    
+                    
                     jobInfoList.remove(jobInfo);
                     jobInfoMutex.release();
                     break;
@@ -184,17 +201,18 @@ public class ProcessManagerSlave extends ProcessManager{
         JobInfo jobInfo=new JobInfo();
 
         jobInfo.job=job;
+        jobInfo.thread=new Thread((Runnable)job);
 
         try{
             jobInfoMutex.acquire();
             jobInfoList.add(jobInfo);
+            jobInfo.thread.start();
             jobInfoMutex.release();
         }
         catch(InterruptedException e){
             e.printStackTrace();
         }
 
-        new Thread((Runnable)job).start();
         return true;
     }
 }

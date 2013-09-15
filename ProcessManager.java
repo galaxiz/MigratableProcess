@@ -4,14 +4,11 @@ import java.io.*;
 import java.util.*;
 import java.net.*;
 
-/*
- * Class ProcessManager
+/**
  * @author Xi Zhao
  *
  */
 public class ProcessManager{
-
-	
     //static entry point
     public static void main(String args[]){
         if(args.length!=0){
