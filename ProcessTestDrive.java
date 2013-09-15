@@ -2,7 +2,8 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
-import java.io.Serializable;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * 
@@ -101,6 +102,26 @@ public class ProcessTestDrive {
 		}
 	}
 
+	public void testPattern(){
+		Pattern p = Pattern.compile("<a([\\s]*?href[\\s]*?=[\\s]*?\"(.+?)\")>.+?</a>");
+		Matcher m = p.matcher("<a href   =   \"http://www.w3schools.com/\">Visit W3Schools</a>");
+		if (m.find()){
+			System.out.println(m.group(1));
+			System.out.println(m.group(2));
+		}
+	}
+	
+	public void testWebCrawler(){
+		String test[] = {"http://www.cnn.com", "webcrawler.txt"};
+		try {
+			MigratableProcess job=new WebCrawlerProcess(test);
+			Thread testdrive = new Thread((Runnable) job);
+			testdrive.start();
+		} catch (Exception e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+	}
 	/**
 	 * Sep 12, 2013
 	 * 
@@ -108,9 +129,11 @@ public class ProcessTestDrive {
 	 */
 	public static void main(String[] args) {
 		ProcessTestDrive ptd = new ProcessTestDrive();
-		ptd.testGrep();
+		//ptd.testGrep();
 		//ptd.testZip();
 		//ptd.testSerializable();
+		//ptd.testPattern();
+		ptd.testWebCrawler();
 	}
 
 }

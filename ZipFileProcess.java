@@ -49,7 +49,7 @@ public class ZipFileProcess implements MigratableProcess {
 	@Override
 	public void run() {
 
-		byte[] buffer = new byte[32];
+		byte[] buffer = new byte[1024];
 
 		try {
 			ZipOutputStream zout = new ZipOutputStream(outFile);
