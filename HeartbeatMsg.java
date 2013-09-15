@@ -1,4 +1,5 @@
 import java.io.*;
+import java.util.ArrayList;
 
 /**
  * 
@@ -14,4 +15,18 @@ public class HeartbeatMsg implements Serializable{
 
     public Integer port;
     public Integer jobCount;
+    public ArrayList<String> jobs;
+    
+    public HeartbeatMsg(){
+    	
+    }
+    
+    public HeartbeatMsg(Type type, Integer port, Integer jobCount,
+			ArrayList<String> jobs) {
+		super();
+		this.type = type;
+		this.port = port;
+		this.jobCount = jobCount;
+		this.jobs = jobs;
+	}
 }

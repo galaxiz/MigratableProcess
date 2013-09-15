@@ -78,6 +78,7 @@ public class ProcessManagerSlave extends ProcessManager {
 		hmsg.type = HeartbeatMsg.Type.reg;
 		hmsg.port = listenerPort;
 		hmsg.jobCount = 0;
+		hmsg.jobs=new ArrayList<String>();
 
 		try {
 			Socket socket = new Socket(host, 9000);
@@ -126,6 +127,7 @@ public class ProcessManagerSlave extends ProcessManager {
 		HeartbeatMsg beat = new HeartbeatMsg();
 		beat.type = HeartbeatMsg.Type.normal;
 		beat.port = listenerPort;
+		beat.jobs=new ArrayList<String>();
 
 		/*
 		 * poll to check whether jobs are done.
@@ -143,6 +145,9 @@ public class ProcessManagerSlave extends ProcessManager {
 				System.out.println("Job: " + jobInfop.job.toString()
 						+ " has finished.");
 				it.remove();
+			}
+			else {
+				beat.jobs.add(jobInfop.commandLine);
 			}
 		}
 
@@ -163,6 +168,7 @@ public class ProcessManagerSlave extends ProcessManager {
 
 			jobInfo.job = job;
 			jobInfo.thread = new Thread((Runnable) job);
+			jobInfo.commandLine=job.toString();
 
 			jobInfoMutex.acquire();
 			jobInfoList.add(jobInfo);
@@ -291,6 +297,7 @@ public class ProcessManagerSlave extends ProcessManager {
 
 		jobInfo.job = job;
 		jobInfo.thread = new Thread((Runnable) job);
+		jobInfo.commandLine=job.toString();
 
 		try {
 			jobInfoMutex.acquire();
