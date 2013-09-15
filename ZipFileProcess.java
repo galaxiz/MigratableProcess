@@ -53,18 +53,22 @@ public class ZipFileProcess implements MigratableProcess {
 
 		try {
 			ZipOutputStream zout = new ZipOutputStream(outFile);
-			ZipEntry ze = new ZipEntry("test.txt");
+			ZipEntry ze = new ZipEntry(inFileName);
 			zout.putNextEntry(ze);
-			
-			int len;
-			while ((len = inFile.read(buffer)) > 0) {
-				zout.write(buffer, 0, len);
-				try {
-					Thread.sleep(500);
-				} catch (InterruptedException e) {
-					e.printStackTrace();
+
+			while (!suspending) {
+				int len;
+				while ((len = inFile.read(buffer)) > 0) {
+					zout.write(buffer, 0, len);
+					try {
+						Thread.sleep(500);
+					} catch (InterruptedException e) {
+						e.printStackTrace();
+					}
 				}
 			}
+			
+			suspending = false;
 
 			inFile.close();
 			zout.closeEntry();
@@ -72,7 +76,6 @@ public class ZipFileProcess implements MigratableProcess {
 			outFile.close();
 
 			System.out.println("Zipping complete!");
-			
 		} catch (IOException e) {
 			System.out.println("Exception" + e);
 			e.printStackTrace();
