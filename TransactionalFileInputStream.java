@@ -52,6 +52,7 @@ public class TransactionalFileInputStream extends InputStream implements
 		if (inputStream == null) {
 			inputStream = new FileInputStream(filename);
 			inputStream.skip(currentLocation);
+			migrated = false;
 		}
 		int result = inputStream.read();
 		if (result != -1)

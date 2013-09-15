@@ -38,7 +38,7 @@ public class TransactionalFileOutputStream extends OutputStream {
 	 * @see java.io.OutputStream#write(int)
 	 */
 	@Override
-	public void write(int arg0) throws IOException {
+	public synchronized void write(int arg0) throws IOException {
 		/*
 		 * 1. open the file 2. do the write job 3. close the file
 		 */
@@ -51,8 +51,10 @@ public class TransactionalFileOutputStream extends OutputStream {
 			if (outputStream == null)
 				System.out.println("out put stream test ok");
 		}
-		if (outputStream == null)
+		if (outputStream == null) {
 			outputStream = new FileOutputStream(filename, append);
+			migrated = false;
+		}	
 		
 		this.append = true;
 

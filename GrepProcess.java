@@ -29,9 +29,6 @@ public class GrepProcess implements MigratableProcess {
 	public void run() {
 		PrintStream out = new PrintStream(outFile);
 		DataInputStream in = new DataInputStream(inFile);
-
-		inFile.setMigrated(false);
-		outFile.setMigrated(false);
 		
 		try {
 			while (!suspending) {
