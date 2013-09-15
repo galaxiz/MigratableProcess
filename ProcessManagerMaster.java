@@ -3,11 +3,22 @@ import java.lang.reflect.*;
 import java.io.*;
 import java.util.*;
 import java.net.*;
+import java.util.concurrent.*;
 
 /* Class ProcessManagerMaster
  * @author Xi Zhao
  */
 public class ProcessManagerMaster extends ProcessManager{
+    //other jvm info
+    ArrayList<HostInfo> hostInfoList;
+    //jvm info mutex
+    Semaphore hostInfoMutex;
+
+    public ProcessManagerMaster(){
+        hostInfoList=new ArrayList<HostInfo>();
+        hostInfoMutex=new Semaphore(1);
+    }
+
     public void master(){
         new Timer(true).scheduleAtFixedRate(new TimerTask(){
             public void run(){
@@ -179,6 +190,7 @@ public class ProcessManagerMaster extends ProcessManager{
 
                         if(hostp.host.equals(ip)){
                             hostp.jobCount=beat.jobCount;
+                            hostp.lastTime=System.currentTimeMillis();
                             break;
                         }
                     }
@@ -190,6 +202,9 @@ public class ProcessManagerMaster extends ProcessManager{
                     //register the host
                     HostInfo hi=new HostInfo();
                     hi.host=ip;
+                    hi.port=9000; //to do
+                    hi.jobCount=0;
+                    hi.lastTime=System.currentTimeMillis();
 
                     hostInfoMutex.acquire();
                     hostInfoList.add(hi);

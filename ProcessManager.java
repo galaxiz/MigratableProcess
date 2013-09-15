@@ -2,7 +2,6 @@ import java.lang.*;
 import java.lang.reflect.*;
 import java.io.*;
 import java.util.*;
-import java.util.concurrent.*;
 import java.net.*;
 
 /*
@@ -11,23 +10,6 @@ import java.net.*;
  *
  */
 public class ProcessManager{
-    //other jvm info
-    ArrayList<HostInfo> hostInfoList;
-    //jvm info mutex
-    Semaphore hostInfoMutex;
-    
-    //Job info
-    ArrayList<JobInfo> jobInfoList;
-    //Job Info Mutex
-    Semaphore jobInfoMutex;
-    
-    public ProcessManager(){
-        hostInfoList=new ArrayList<HostInfo>();
-        jobInfoList=new ArrayList<JobInfo>();
-
-        hostInfoMutex=new Semaphore(1);
-        jobInfoMutex=new Semaphore(1);
-    }
 
     //static entry point
     public static void main(String args[]){

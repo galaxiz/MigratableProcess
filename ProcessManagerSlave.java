@@ -3,12 +3,28 @@ import java.lang.reflect.*;
 import java.io.*;
 import java.util.*;
 import java.net.*;
+import java.util.concurrent.*;
 
 /* Class ProcessManagerSlave
  * @author Xi Zhao
  */
 public class ProcessManagerSlave extends ProcessManager{
+    //Job info
+    ArrayList<JobInfo> jobInfoList;
+    //Job Info Mutex
+    Semaphore jobInfoMutex;
+
+    //host
+    String host;
+
+    public ProcessManagerSlave(){
+        jobInfoList=new ArrayList<JobInfo>();
+        jobInfoMutex=new Semaphore(1);
+    }
+
     public void slave(String host){
+        this.host=host;
+
         registerSlave(host);
 
         new Thread(new Runnable(){
@@ -38,7 +54,7 @@ public class ProcessManagerSlave extends ProcessManager{
     void commandListener(){
         //to do listening to a fixed port 9001
         try{
-            ServerSocket socket=new ServerSocket(9000);
+            ServerSocket socket=new ServerSocket(9001);
 
             while(true){
                 final Socket insocket=socket.accept();
@@ -61,7 +77,7 @@ public class ProcessManagerSlave extends ProcessManager{
         beat.type=HeartbeatMsg.Type.normal;
         beat.jobCount=jobInfoList.size();
 
-        sendObjectTo(hostInfoList.get(0).host,9000,beat);
+        sendObjectTo(host,9000,beat);
     }
 
     boolean newJob(String command,String args[]){
@@ -95,10 +111,14 @@ public class ProcessManagerSlave extends ProcessManager{
             switch(cmsg.type){
                 case newJob:
                     String[] infos=cmsg.args.trim().split(" +");
-                    String[] args=new String[infos.length-1];
+                    String[] args=null;
 
-                    for(int i=1;i<infos.length;i++){
-                        args[i-1]=infos[i];
+                    if(infos.length>1){
+                        args=new String[infos.length-1];
+
+                        for(int i=1;i<infos.length;i++){
+                            args[i-1]=infos[i];
+                        }
                     }
 
                     newJob(infos[0],args);
