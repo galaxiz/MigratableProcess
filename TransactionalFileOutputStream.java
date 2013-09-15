@@ -2,6 +2,7 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.io.Serializable;
 
 /**
  * 
@@ -11,7 +12,7 @@ import java.io.OutputStream;
  * @author Shiwei Dong
  * 
  */
-public class TransactionalFileOutputStream extends OutputStream {
+public class TransactionalFileOutputStream extends OutputStream implements Serializable{
 
 	private String filename;
 	private FileOutputStream outputStream;
