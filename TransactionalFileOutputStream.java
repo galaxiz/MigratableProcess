@@ -14,7 +14,7 @@ import java.io.OutputStream;
 public class TransactionalFileOutputStream extends OutputStream {
 
 	private String filename;
-	private FileOutputStream outputStream;
+	private transient FileOutputStream outputStream;
 	private boolean migrated = false;
 	private boolean append = false;
 

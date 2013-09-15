@@ -13,7 +13,7 @@ public class TransactionalFileInputStream extends InputStream implements
 	private String filename;
 	private int currentLocation = 0;
 	private boolean migrated = false;
-	private FileInputStream inputStream;
+	private transient FileInputStream inputStream;
 
 	/**
 	 * @param filename
