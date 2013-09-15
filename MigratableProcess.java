@@ -12,8 +12,10 @@ import java.io.Serializable;
  * 
  */
 public interface MigratableProcess extends Serializable, Runnable {
+	
 	//suspend the current process
 	void suspend();
 	
 	String toString();
+	
 }
