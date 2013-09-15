@@ -9,25 +9,45 @@ import java.util.concurrent.*;
  * @author Xi Zhao
  */
 public class ProcessManagerSlave extends ProcessManager {
-	// Job info
+	/*
+	 * Job info
+	 */
 	ArrayList<JobInfo> jobInfoList;
-	// Job Info Mutex
+	/*
+	 * Job Info Mutex
+	 */
 	Semaphore jobInfoMutex;
 
-	// host
+	/*
+	 * host address or name of master node.
+	 */
 	String host;
 
+	/*
+	 * command listener port of this slave node.
+	 */
 	int listenerPort;
 
+	/*
+	 * heartbeat period.
+	 */
 	final int SlavePeriod = 3000;
 
 	public ProcessManagerSlave() {
 		jobInfoList = new ArrayList<JobInfo>();
 		jobInfoMutex = new Semaphore(1);
 
+		/*
+		 * Randomly choose a port number for command listener. This enables
+		 * multiple slave nodes to run on the same machine.
+		 */
 		listenerPort = 9001 + new Random().nextInt(100);
 	}
 
+	/*
+	 * slave register this slave node to master node, create a command listener
+	 * and create a heartbeat sender which sends heartbeat periodically.
+	 */
 	public void slave(String host) {
 		this.host = host;
 
@@ -35,21 +55,18 @@ public class ProcessManagerSlave extends ProcessManager {
 			try {
 				Thread.sleep(SlavePeriod);
 			} catch (InterruptedException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
+				System.out.println("Retrying to register...");
 			}
 		}
 
 		new Thread(new Runnable() {
 			public void run() {
-				// slave listener
 				commandListener();
 			}
 		}).start();
 
 		new Timer(true).scheduleAtFixedRate(new TimerTask() {
 			public void run() {
-				// send heartbeat
 				heartbeatSender();
 			}
 		}, 0, SlavePeriod);
@@ -59,7 +76,7 @@ public class ProcessManagerSlave extends ProcessManager {
 	boolean registerSlave(String host) {
 		HeartbeatMsg hmsg = new HeartbeatMsg();
 		hmsg.type = HeartbeatMsg.Type.reg;
-		hmsg.port=listenerPort;
+		hmsg.port = listenerPort;
 		hmsg.jobCount = 0;
 
 		try {
@@ -73,14 +90,14 @@ public class ProcessManagerSlave extends ProcessManager {
 			BufferedReader br = new BufferedReader(new InputStreamReader(
 					socket.getInputStream()));
 			String response = br.readLine();
-			
-			System.out.println(response);
+
 			if (response.equals("ok")) {
-				System.out.println("Register succeed.");
+				System.out
+						.println("Registration succeed. Starting to serve...");
 				return true;
 			}
 		} catch (IOException e) {
-			e.printStackTrace();
+			System.out.println("Network error occurred when registering.");
 			return false;
 		}
 
@@ -88,7 +105,6 @@ public class ProcessManagerSlave extends ProcessManager {
 	}
 
 	void commandListener() {
-		// to do listening to a fixed port 9001
 		try {
 			ServerSocket socket = new ServerSocket(listenerPort);
 
@@ -102,35 +118,38 @@ public class ProcessManagerSlave extends ProcessManager {
 				}).start();
 			}
 		} catch (IOException e) {
-			e.printStackTrace();
+			System.out.println("Error occurred in execute command.");
 		}
 	}
 
 	void heartbeatSender() {
-		// to do
-
-		// heartbeat
 		HeartbeatMsg beat = new HeartbeatMsg();
 		beat.type = HeartbeatMsg.Type.normal;
 		beat.port = listenerPort;
 
-		// check whether job is done.
+		/*
+		 * poll to check whether jobs are done.
+		 */
 		try {
 			jobInfoMutex.acquire();
 		} catch (InterruptedException e) {
-			e.printStackTrace();
+			System.out
+					.println("Retrying to acquire mutex to check status of jobs");
 		}
+
 		for (Iterator<JobInfo> it = jobInfoList.iterator(); it.hasNext();) {
 			JobInfo jobInfop = it.next();
 			if (jobInfop.thread.isAlive() == false) {
+				System.out.println("Job: " + jobInfop.job.toString()
+						+ " has finished.");
 				it.remove();
 			}
 		}
-		
+
 		beat.jobCount = jobInfoList.size();
 
 		jobInfoMutex.release();
-		
+
 		sendObjectTo(host, 9000, beat);
 	}
 
@@ -138,7 +157,7 @@ public class ProcessManagerSlave extends ProcessManager {
 		try {
 			JobInfo jobInfo = new JobInfo();
 
-			Class jobClass = Class.forName(command);
+			Class<?> jobClass = Class.forName(command);
 			MigratableProcess job = (MigratableProcess) jobClass
 					.getConstructor(String[].class).newInstance((Object) args);
 
@@ -149,9 +168,14 @@ public class ProcessManagerSlave extends ProcessManager {
 			jobInfoList.add(jobInfo);
 			jobInfo.thread.start();
 			jobInfoMutex.release();
+		} catch (ClassNotFoundException e) {
+			System.out.println("command not found.");
+			return false;
+		} catch (NoSuchMethodException e) {
+			System.out.println("Not a standard job.");
+			return false;
 		} catch (Exception e) {
-			// to do different exceptions
-			e.printStackTrace();
+			System.out.println("Create job failed.");
 			return false;
 		}
 
@@ -182,64 +206,80 @@ public class ProcessManagerSlave extends ProcessManager {
 				newJob(infos[0], args);
 				break;
 			case killJob:
-				// to do
+				// TODO: kill job feature.
 				break;
 			case requestJob:
 				CommandMsg cm = new CommandMsg();
 				cm.type = CommandMsg.Type.waitJob;
 				cm.args = "";
-				
-				String[] info=cmsg.args.trim().split(":");
 
-				Socket jobSocket = new Socket(info[0],Integer.parseInt(info[1]));
+				String[] info = cmsg.args.trim().split(":");
+
+				Socket jobSocket = new Socket(info[0],
+						Integer.parseInt(info[1]));
 				ObjectOutputStream out = new ObjectOutputStream(
 						jobSocket.getOutputStream());
 				out.writeObject(cm);
 				out.flush();
 
-				System.out.println("Starting to read job");
+				System.out.println("Reading job...");
 				ObjectInputStream jobIn = new ObjectInputStream(
 						jobSocket.getInputStream());
-				MigratableProcess job = (MigratableProcess) jobIn.readObject();
-				
-				System.out.println("Starting to resume job");
-				resumeJob(job);
+				MigratableProcess job;
+
+				try {
+					job = (MigratableProcess) jobIn.readObject();
+
+					System.out.println("Resuming job...");
+					resumeJob(job);
+				} catch (ClassNotFoundException e1) {
+					System.out.println("Receiving job error.");
+				}
+
 				break;
 			case waitJob:
-				jobInfoMutex.acquire();
+				try {
+					jobInfoMutex.acquire();
+				} catch (InterruptedException e) {
+					System.out
+							.println("Retrying to acquire mutex to send job.");
+				}
+
 				JobInfo jobInfo = jobInfoList.get(new Random()
 						.nextInt(jobInfoList.size()));
 
-				System.out.println("Starting to send job");
+				System.out.println("Sending job...");
 				if (sendJob(socket, jobInfo)) {
 					jobInfoList.remove(jobInfo);
 				}
-				System.out.println("End of sending job");
+				System.out.println("Sending job done.");
 				jobInfoMutex.release();
 				break;
 			default:
 			}
 		} catch (IOException e) {
 			e.printStackTrace();
-		} catch (ClassNotFoundException e) {
-			e.printStackTrace();
-		} catch (InterruptedException e) {
-			e.printStackTrace();
+		} catch (ClassNotFoundException e2) {
+			System.out.println("Command message error.");
 		}
 	}
 
 	boolean sendJob(Socket socket, JobInfo jobInfo) {
-		// suspend
+		/*
+		 * Suspend job
+		 */
 		jobInfo.job.suspend();
 
-		// serialize
+		/*
+		 * Serialize to receiver.
+		 */
 		try {
 			ObjectOutputStream out = new ObjectOutputStream(
 					socket.getOutputStream());
 			out.writeObject(jobInfo.job);
 			out.flush();
 		} catch (IOException e) {
-			e.printStackTrace();
+			System.out.println("Error in sending job to other slave node.");
 			return false;
 		}
 
@@ -254,12 +294,14 @@ public class ProcessManagerSlave extends ProcessManager {
 
 		try {
 			jobInfoMutex.acquire();
-			jobInfoList.add(jobInfo);
-			jobInfo.thread.start();
-			jobInfoMutex.release();
 		} catch (InterruptedException e) {
-			e.printStackTrace();
+			System.out
+					.println("Retrying to acquire mutex to resume job.");
 		}
+
+		jobInfoList.add(jobInfo);
+		jobInfo.thread.start();
+		jobInfoMutex.release();
 
 		return true;
 	}
