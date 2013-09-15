@@ -16,30 +16,30 @@ import java.util.regex.Pattern;
 public class ProcessTestDrive {
 
 	public void testGrep() {
-		String test[] = { "gig", "in.txt", "out.txt" };
+		String test[] = { "Larry", "in.txt", "out.txt" };
 		try {
 			GrepProcess gp = new GrepProcess(test);
 			Thread testdrive = new Thread((Runnable) gp);
 			testdrive.start();
-			Thread.sleep(500);
-			int i = 0;
-			while (i < 10) {
-				gp.suspend();
-				Thread.sleep(500);
-				
-				FileOutputStream fout=new FileOutputStream("serial");
-				ObjectOutputStream out=new ObjectOutputStream(fout);
-				out.writeObject(gp);
-				
-				FileInputStream fin=new FileInputStream("serial");
-				ObjectInputStream in=new ObjectInputStream(fin);
-				MigratableProcess job=(MigratableProcess)in.readObject();
-				
-				Thread testdrive2 = new Thread((Runnable) job);
-				testdrive2.start();
-				Thread.sleep(500);
-				i++;
-			}
+			//Thread.sleep(50);
+//			int i = 0;
+//			while (i < 10) {
+//				gp.suspend();
+//				//Thread.sleep(50);
+//				
+//				FileOutputStream fout=new FileOutputStream("serial");
+//				ObjectOutputStream out=new ObjectOutputStream(fout);
+//				out.writeObject(gp);
+//				
+//				FileInputStream fin=new FileInputStream("serial");
+//				ObjectInputStream in=new ObjectInputStream(fin);
+//				MigratableProcess job=(MigratableProcess)in.readObject();
+//				
+//				Thread testdrive2 = new Thread((Runnable) job);
+//				testdrive2.start();
+//				//Thread.sleep(50);
+//				i++;
+//			}
 		} catch (Exception e) {
 			System.out.println("Exception " + e);
 			e.printStackTrace();
@@ -129,11 +129,11 @@ public class ProcessTestDrive {
 	 */
 	public static void main(String[] args) {
 		ProcessTestDrive ptd = new ProcessTestDrive();
-		//ptd.testGrep();
+		ptd.testGrep();
 		//ptd.testZip();
 		//ptd.testSerializable();
 		//ptd.testPattern();
-		ptd.testWebCrawler();
+		//ptd.testWebCrawler();
 	}
 
 }
