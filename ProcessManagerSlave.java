@@ -8,211 +8,254 @@ import java.util.concurrent.*;
 /**
  * @author Xi Zhao
  */
-public class ProcessManagerSlave extends ProcessManager{
-    //Job info
-    ArrayList<JobInfo> jobInfoList;
-    //Job Info Mutex
-    Semaphore jobInfoMutex;
+public class ProcessManagerSlave extends ProcessManager {
+	// Job info
+	ArrayList<JobInfo> jobInfoList;
+	// Job Info Mutex
+	Semaphore jobInfoMutex;
 
-    //host
-    String host;
+	// host
+	String host;
 
-    public ProcessManagerSlave(){
-        jobInfoList=new ArrayList<JobInfo>();
-        jobInfoMutex=new Semaphore(1);
-    }
+	int listenerPort;
 
-    public void slave(String host){
-        this.host=host;
+	final int SlavePeriod = 3000;
 
-        registerSlave(host);
+	public ProcessManagerSlave() {
+		jobInfoList = new ArrayList<JobInfo>();
+		jobInfoMutex = new Semaphore(1);
 
-        new Thread(new Runnable(){
-            public void run(){
-                //slave listener
-                commandListener();
-            }
-        }).start();
+		listenerPort = 9001 + new Random().nextInt(100);
+	}
 
-        new Timer(true).scheduleAtFixedRate(new TimerTask(){
-            public void run(){
-                //send heartbeat
-                heartbeatSender();
-            }
-        },0,3*1000);
-    }
+	public void slave(String host) {
+		this.host = host;
 
-    //private functions
-    void registerSlave(String host){
-        HeartbeatMsg hmsg=new HeartbeatMsg();
-        hmsg.type=HeartbeatMsg.Type.reg;
-        hmsg.jobCount=0;
+		while (registerSlave(host) == false) {
+			try {
+				Thread.sleep(SlavePeriod);
+			} catch (InterruptedException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		}
 
-        sendObjectTo(host,9000,hmsg);
-    }
+		new Thread(new Runnable() {
+			public void run() {
+				// slave listener
+				commandListener();
+			}
+		}).start();
 
-    void commandListener(){
-        //to do listening to a fixed port 9001
-        try{
-            ServerSocket socket=new ServerSocket(9001);
+		new Timer(true).scheduleAtFixedRate(new TimerTask() {
+			public void run() {
+				// send heartbeat
+				heartbeatSender();
+			}
+		}, 0, SlavePeriod);
+	}
 
-            while(true){
-                final Socket insocket=socket.accept();
+	// private functions
+	boolean registerSlave(String host) {
+		HeartbeatMsg hmsg = new HeartbeatMsg();
+		hmsg.type = HeartbeatMsg.Type.reg;
+		hmsg.port=listenerPort;
+		hmsg.jobCount = 0;
 
-                new Thread(new Runnable(){
-                    public void run(){
-                        commandHandler(insocket);
-                    }
-                }).start();
-            }
-        }
-        catch(IOException e){
-            e.printStackTrace();
-        }
-    }
+		try {
+			Socket socket = new Socket(host, 9000);
 
-    void heartbeatSender(){
-        //to do
-    	
-    	//check whether job is done.
-    	try{
-    		jobInfoMutex.acquire();
-    	}
-    	catch(InterruptedException e){
-    		e.printStackTrace();
-    	}
-    	for(Iterator<JobInfo> it=jobInfoList.iterator();it.hasNext();){
-    		JobInfo jobInfop=it.next();
-    		if(jobInfop.thread.isAlive()==false){
-    			it.remove();
-    		}
-    	}
-    	jobInfoMutex.release();
-    	
-    	//heartbeat
-        HeartbeatMsg beat=new HeartbeatMsg();
-        beat.type=HeartbeatMsg.Type.normal;
-        beat.jobCount=jobInfoList.size();
+			ObjectOutputStream out = new ObjectOutputStream(
+					socket.getOutputStream());
+			out.writeObject(hmsg);
+			out.flush();
 
-        sendObjectTo(host,9000,beat);
-    }
+			BufferedReader br = new BufferedReader(new InputStreamReader(
+					socket.getInputStream()));
+			String response = br.readLine();
+			
+			System.out.println(response);
+			if (response.equals("ok")) {
+				System.out.println("Register succeed.");
+				return true;
+			}
+		} catch (IOException e) {
+			e.printStackTrace();
+			return false;
+		}
 
-    boolean newJob(String command,String args[]){
-        try{
-            JobInfo jobInfo=new JobInfo();
+		return false;
+	}
 
-            Class jobClass=Class.forName(command);
-            MigratableProcess job=(MigratableProcess) jobClass.getConstructor(String[].class).newInstance((Object)args);
+	void commandListener() {
+		// to do listening to a fixed port 9001
+		try {
+			ServerSocket socket = new ServerSocket(listenerPort);
 
-            jobInfo.job=job;
-            jobInfo.thread=new Thread((Runnable)job);
-            
-            jobInfoMutex.acquire();
-            jobInfoList.add(jobInfo);
-            jobInfo.thread.start();
-            jobInfoMutex.release();
-        }catch(Exception e){
-            //to do different exceptions
-            e.printStackTrace();
-            return false;
-        }
+			while (true) {
+				final Socket insocket = socket.accept();
 
-        return true;
-    }
+				new Thread(new Runnable() {
+					public void run() {
+						commandHandler(insocket);
+					}
+				}).start();
+			}
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+	}
 
-    void commandHandler(Socket socket){
-        try{
-            ObjectInputStream in=new ObjectInputStream(socket.getInputStream());
-            CommandMsg cmsg=(CommandMsg) in.readObject();
+	void heartbeatSender() {
+		// to do
 
-            switch(cmsg.type){
-                case newJob:
-                    String[] infos=cmsg.args.trim().split(" +");
-                    String[] args=null;
+		// check whether job is done.
+		try {
+			jobInfoMutex.acquire();
+		} catch (InterruptedException e) {
+			e.printStackTrace();
+		}
+		for (Iterator<JobInfo> it = jobInfoList.iterator(); it.hasNext();) {
+			JobInfo jobInfop = it.next();
+			if (jobInfop.thread.isAlive() == false) {
+				it.remove();
+			}
+		}
+		jobInfoMutex.release();
 
-                    if(infos.length>1){
-                        args=new String[infos.length-1];
+		// heartbeat
+		HeartbeatMsg beat = new HeartbeatMsg();
+		beat.type = HeartbeatMsg.Type.normal;
+		beat.port = listenerPort;
+		beat.jobCount = jobInfoList.size();
 
-                        for(int i=1;i<infos.length;i++){
-                            args[i-1]=infos[i];
-                        }
-                    }
+		sendObjectTo(host, 9000, beat);
+	}
 
-                    newJob(infos[0],args);
-                    break;
-                case killJob:
-                    //to do
-                    break;
-                case requestJob:
-                    CommandMsg cm=new CommandMsg();
-                    cm.type=CommandMsg.Type.waitJob;
-                    cm.args="";
+	boolean newJob(String command, String args[]) {
+		try {
+			JobInfo jobInfo = new JobInfo();
 
-                    Socket jobSocket=new Socket(cmsg.args,9001);
-                    ObjectOutputStream out=new ObjectOutputStream(jobSocket.getOutputStream());
-                    out.writeObject(cm);
-                    out.flush();
+			Class jobClass = Class.forName(command);
+			MigratableProcess job = (MigratableProcess) jobClass
+					.getConstructor(String[].class).newInstance((Object) args);
 
-                    ObjectInputStream jobIn=new ObjectInputStream(jobSocket.getInputStream());
-                    MigratableProcess job=(MigratableProcess)jobIn.readObject();
-                    
-                    resumeJob(job);
-                    break;
-                case waitJob:                
-                    jobInfoMutex.acquire();
-                	JobInfo jobInfo=jobInfoList.get(new Random().nextInt(jobInfoList.size()));
-                    sendJob(socket,jobInfo);                    
-                    
-                    jobInfoList.remove(jobInfo);
-                    jobInfoMutex.release();
-                    break;
-                default:
-            }
-        }
-        catch(IOException e){
-            e.printStackTrace();
-        }
-        catch(ClassNotFoundException e){
-            e.printStackTrace();
-        }
-        catch(InterruptedException e){
-            e.printStackTrace();
-        }
-    }
+			jobInfo.job = job;
+			jobInfo.thread = new Thread((Runnable) job);
 
-    boolean sendJob(Socket socket,JobInfo jobInfo){
-        //suspend
-        jobInfo.job.suspend();
+			jobInfoMutex.acquire();
+			jobInfoList.add(jobInfo);
+			jobInfo.thread.start();
+			jobInfoMutex.release();
+		} catch (Exception e) {
+			// to do different exceptions
+			e.printStackTrace();
+			return false;
+		}
 
-        //serialize
-        try{
-            ObjectOutputStream out=new ObjectOutputStream(socket.getOutputStream());
-            out.writeObject(jobInfo);
-            out.flush();
-        }
-        catch(IOException e){
-            e.printStackTrace();
-        }
+		return true;
+	}
 
-        return true;
-    }
+	void commandHandler(Socket socket) {
+		try {
+			ObjectInputStream in = new ObjectInputStream(
+					socket.getInputStream());
+			CommandMsg cmsg = (CommandMsg) in.readObject();
 
-    boolean resumeJob(MigratableProcess job){
-        JobInfo jobInfo=new JobInfo();
+			System.out.println(cmsg.type.toString() + ":" + cmsg.args);
 
-        jobInfo.job=job;
-        jobInfo.thread=new Thread((Runnable)job);
+			switch (cmsg.type) {
+			case newJob:
+				String[] infos = cmsg.args.trim().split(" +");
+				String[] args = null;
 
-        try{
-            jobInfoMutex.acquire();
-            jobInfoList.add(jobInfo);
-            jobInfo.thread.start();
-            jobInfoMutex.release();
-        }
-        catch(InterruptedException e){
-            e.printStackTrace();
-        }
+				if (infos.length > 1) {
+					args = new String[infos.length - 1];
 
-        return true;
-    }
+					for (int i = 1; i < infos.length; i++) {
+						args[i - 1] = infos[i];
+					}
+				}
+
+				newJob(infos[0], args);
+				break;
+			case killJob:
+				// to do
+				break;
+			case requestJob:
+				CommandMsg cm = new CommandMsg();
+				cm.type = CommandMsg.Type.waitJob;
+				cm.args = "";
+				
+				String[] info=cmsg.args.trim().split(":");
+
+				Socket jobSocket = new Socket(info[0],Integer.parseInt(info[1]));
+				ObjectOutputStream out = new ObjectOutputStream(
+						jobSocket.getOutputStream());
+				out.writeObject(cm);
+				out.flush();
+
+				ObjectInputStream jobIn = new ObjectInputStream(
+						jobSocket.getInputStream());
+				MigratableProcess job = (MigratableProcess) jobIn.readObject();
+
+				resumeJob(job);
+				break;
+			case waitJob:
+				jobInfoMutex.acquire();
+				JobInfo jobInfo = jobInfoList.get(new Random()
+						.nextInt(jobInfoList.size()));
+
+				if (sendJob(socket, jobInfo)) {
+					jobInfoList.remove(jobInfo);
+				}
+				
+				jobInfoMutex.release();
+				break;
+			default:
+			}
+		} catch (IOException e) {
+			e.printStackTrace();
+		} catch (ClassNotFoundException e) {
+			e.printStackTrace();
+		} catch (InterruptedException e) {
+			e.printStackTrace();
+		}
+	}
+
+	boolean sendJob(Socket socket, JobInfo jobInfo) {
+		// suspend
+		jobInfo.job.suspend();
+
+		// serialize
+		try {
+			ObjectOutputStream out = new ObjectOutputStream(
+					socket.getOutputStream());
+			out.writeObject(jobInfo.job);
+			out.flush();
+		} catch (IOException e) {
+			e.printStackTrace();
+			return false;
+		}
+
+		return true;
+	}
+
+	boolean resumeJob(MigratableProcess job) {
+		JobInfo jobInfo = new JobInfo();
+
+		jobInfo.job = job;
+		jobInfo.thread = new Thread((Runnable) job);
+
+		try {
+			jobInfoMutex.acquire();
+			jobInfoList.add(jobInfo);
+			jobInfo.thread.start();
+			jobInfoMutex.release();
+		} catch (InterruptedException e) {
+			e.printStackTrace();
+		}
+
+		return true;
+	}
 }

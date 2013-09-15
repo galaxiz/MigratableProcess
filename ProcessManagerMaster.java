@@ -13,6 +13,8 @@ public class ProcessManagerMaster extends ProcessManager{
     ArrayList<HostInfo> hostInfoList;
     //jvm info mutex
     Semaphore hostInfoMutex;
+    
+    final int MasterPeriod=15000;
 
     public ProcessManagerMaster(){
         hostInfoList=new ArrayList<HostInfo>();
@@ -25,7 +27,7 @@ public class ProcessManagerMaster extends ProcessManager{
                 //host heartbeat and workload checker
                 checkHeartbeatAndWorkload();
             }
-        },0,15*1000);
+        },0,MasterPeriod);
 
         //to do master listener RPC method for slave
         new Thread(new Runnable(){
@@ -49,16 +51,20 @@ public class ProcessManagerMaster extends ProcessManager{
 
         //heartbeat
         long curTime=System.currentTimeMillis();
+        
+    	System.out.println("Checker:"+curTime/1000);
 
-        try{
-            hostInfoMutex.acquire();
-        }
-        catch(InterruptedException e){
-            e.printStackTrace();
-        }
+		while (true) {
+			try {
+				hostInfoMutex.acquire();
+				break;
+			} catch (InterruptedException e) {
+				e.printStackTrace();
+			}
+		}
         for(Iterator<HostInfo> it=hostInfoList.iterator();it.hasNext();){
             HostInfo hostp=it.next();
-            if(curTime-hostp.lastTime>15000){
+            if(curTime-hostp.lastTime>MasterPeriod){
                 System.out.println(hostp.host+"(slave) is unreachable.");
                 it.remove();
             }
@@ -66,12 +72,14 @@ public class ProcessManagerMaster extends ProcessManager{
         hostInfoMutex.release();
         
         //workload
-        try{
-            hostInfoMutex.acquire();
-        }
-        catch(InterruptedException e){
-            e.printStackTrace();
-        }
+		while (true) {
+			try {
+				hostInfoMutex.acquire();
+				break;
+			} catch (InterruptedException e) {
+				e.printStackTrace();
+			}
+		}
         while(true){
             int minCount=9999,maxCount=-1;
             HostInfo minHost=null,maxHost=null;
@@ -89,16 +97,17 @@ public class ProcessManagerMaster extends ProcessManager{
                 }
             }
 
-            if(maxCount-minCount>1){
+            if(maxCount-minCount>=2){
                 //Send command to minHost to request a job from maxHost
                 //to do sync between two slaves and master.
                 CommandMsg cmsg=new CommandMsg();
                 cmsg.type=CommandMsg.Type.requestJob;
-                cmsg.args=maxHost.host;
+                cmsg.args=maxHost.host+":"+maxHost.port.toString();
 
-                sendObjectTo(minHost.host,9001,cmsg);
+                sendObjectTo(minHost.host,minHost.port,cmsg);
 
-                //modify 
+                //to do do not modify jobCount until they heartbeat to master 
+                //yes but I cannot always make it to request job.
                 minHost.jobCount++;
                 maxHost.jobCount--;
             }
@@ -124,9 +133,17 @@ public class ProcessManagerMaster extends ProcessManager{
                 else if(line.equals("ps")){
                     //show ps info on all slaves?
                     //to do
-                    hostInfoMutex.acquire();
+                    while(true){
+						try {
+							hostInfoMutex.acquire();
+							break;
+						}
+                    	catch(InterruptedException e){
+                    		e.printStackTrace();
+                    	}
+                    }
                     for(HostInfo hostp:hostInfoList){
-                        System.out.println(hostp.host+"'s job count:"+hostp.jobCount.toString());
+                        System.out.println(hostp.host+":"+hostp.port.toString()+" job count:"+hostp.jobCount.toString());
                     }
                     hostInfoMutex.release();
                 }
@@ -137,20 +154,27 @@ public class ProcessManagerMaster extends ProcessManager{
                     cm.type=CommandMsg.Type.newJob;
                     cm.args=line;
 
-                    hostInfoMutex.acquire();
+                    while(true){
+						try {
+							hostInfoMutex.acquire();
+							break;
+						}
+                    	catch(InterruptedException e){
+                    		e.printStackTrace();
+                    	}
+                    }
 
-                    HostInfo randHostInfo=hostInfoList.get(new Random().nextInt(hostInfoList.size()));
+                    //to do currently create job to first host
+                    //HostInfo randHostInfo=hostInfoList.get(new Random().nextInt(hostInfoList.size()));
+                    HostInfo randHostInfo=hostInfoList.get(0);
                     randHostInfo.jobCount++;
-                    sendObjectTo(randHostInfo.host,9001,cm);
+                    sendObjectTo(randHostInfo.host,randHostInfo.port,cm);
 
                     hostInfoMutex.release();
                 }
             }catch(IOException e){
                 e.printStackTrace();
-            }
-            catch(InterruptedException e){
-                e.printStackTrace();
-            }
+            }           
         }
     }
 
@@ -180,37 +204,56 @@ public class ProcessManagerMaster extends ProcessManager{
             HeartbeatMsg beat=(HeartbeatMsg)in.readObject();
 
             String ip=socket.getInetAddress().getHostAddress();
+            int port=beat.port;
+            
+            //System.out.println("heartbeat type:"+beat.type.toString());
 
-            switch(beat.type){
-                case normal:
-                    //find HostInfo with ip;
-                    hostInfoMutex.acquire();
-                    for(Iterator<HostInfo> it=hostInfoList.iterator();it.hasNext();){
-                        HostInfo hostp=it.next();
+			switch (beat.type) {
+			case normal:
+				// find HostInfo with ip;
+				while (true) {
+					try {
+						hostInfoMutex.acquire();
+						break;
+					} catch (InterruptedException e) {
+						e.printStackTrace();
+					}
+				}
+				
+				//to do change to hash instead of search
+				for (Iterator<HostInfo> it = hostInfoList.iterator(); it
+						.hasNext();) {
+					HostInfo hostp = it.next();
 
-                        if(hostp.host.equals(ip)){
-                            hostp.jobCount=beat.jobCount;
-                            hostp.lastTime=System.currentTimeMillis();
-                            break;
-                        }
-                    }
-                    hostInfoMutex.release();
+					if (hostp.host.equals(ip) && hostp.port==port) {
+						hostp.jobCount = beat.jobCount;
+						hostp.lastTime = System.currentTimeMillis();
+						break;
+					}
+				}
+				hostInfoMutex.release();
 
-                    break;
+				break;
 
-                case reg:
-                    //register the host
-                    HostInfo hi=new HostInfo();
-                    hi.host=ip;
-                    hi.port=9000; //to do
-                    hi.jobCount=0;
-                    hi.lastTime=System.currentTimeMillis();
+			case reg:
+				// register the host
+				HostInfo hi = new HostInfo();
+				hi.host = ip;
+				hi.port = port; // to do
+				hi.jobCount = 0;
+				hi.lastTime = System.currentTimeMillis();
 
-                    hostInfoMutex.acquire();
-                    hostInfoList.add(hi);
-                    hostInfoMutex.release();
-                    break;
-            }
+				hostInfoMutex.acquire();
+				hostInfoList.add(hi);
+				hostInfoMutex.release();
+				
+				//response ok to do
+				PrintWriter out=new PrintWriter(socket.getOutputStream());
+				out.write("ok\n");
+				out.flush();
+				
+				break;
+			}
         }
         catch(IOException e){
             e.printStackTrace();

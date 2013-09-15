@@ -12,5 +12,6 @@ public class HeartbeatMsg implements Serializable{
 
     Type type;
 
+    public Integer port;
     public Integer jobCount;
 }
