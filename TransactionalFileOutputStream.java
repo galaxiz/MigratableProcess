@@ -48,9 +48,6 @@ public class TransactionalFileOutputStream extends OutputStream implements Seria
 				outputStream.close();
 				outputStream = null;
 			}
-
-			if (outputStream == null)
-				System.out.println("out put stream test ok");
 		}
 		if (outputStream == null) {
 			outputStream = new FileOutputStream(filename, append);
