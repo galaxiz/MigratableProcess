@@ -1,5 +1,7 @@
 import java.io.Serializable;
 
+import Processes.MigratableProcess;
+
 /**
  * 
  * @author Xi Zhao
