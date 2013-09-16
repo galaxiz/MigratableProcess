@@ -20,7 +20,6 @@ public class TransactionalFileInputStream extends InputStream implements
 	 */
 	public TransactionalFileInputStream(String filename) {
 		this.filename = filename;
-		// this.inputStream = new FileInputStream(filename);
 		this.currentLocation = 0;
 		this.migrated = false;
 	}
@@ -45,9 +44,6 @@ public class TransactionalFileInputStream extends InputStream implements
 				inputStream.close();
 				inputStream = null;
 			}
-
-			if (inputStream == null)
-				System.out.println("test ok");
 		}
 		if (inputStream == null) {
 			inputStream = new FileInputStream(filename);
