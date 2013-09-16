@@ -12,11 +12,12 @@ public class GrepProcess implements MigratableProcess {
 	private String query;
 	private String[] args;
 
+	private volatile boolean running;
 	private volatile boolean suspending;
 
 	public GrepProcess(String args[]) throws Exception {
-		this.args=args;
-		
+		this.args = args;
+
 		if (args.length != 3) {
 			System.out
 					.println("usage: GrepProcess <queryString> <inputFile> <outputFile>");
@@ -29,9 +30,10 @@ public class GrepProcess implements MigratableProcess {
 	}
 
 	public void run() {
+		running = true;
 		PrintStream out = new PrintStream(outFile);
 		DataInputStream in = new DataInputStream(inFile);
-		
+
 		try {
 			while (!suspending) {
 				String line = in.readLine();
@@ -47,7 +49,7 @@ public class GrepProcess implements MigratableProcess {
 				// Make grep take longer so that we don't require extremely
 				// large files for interesting results
 				try {
-					Thread.sleep(1*1000);
+					Thread.sleep(1 * 1000);
 				} catch (InterruptedException e) {
 					// ignore it
 				}
@@ -58,22 +60,31 @@ public class GrepProcess implements MigratableProcess {
 			System.out.println("GrepProcess: Error: " + e);
 		}
 
+		if (suspending) {
+			System.out.println("GrepProcess suspended!");
+		} else {
+			System.out.println("GrepProcess complete!");
+			running = false;
+		}
+
 		suspending = false;
 	}
 
 	public void suspend() {
-		suspending = true;
-		inFile.setMigrated(true);
-		outFile.setMigrated(true);
-		while (suspending)
-			;
+		if (running) {
+			suspending = true;
+			inFile.setMigrated(true);
+			outFile.setMigrated(true);
+			while (suspending)
+				;
+		}
 	}
-	
+
 	public String toString() {
-		StringBuilder sb=new StringBuilder("GrepProcess");
-		
-		for(String argv:args){
-			sb.append(" "+argv);
+		StringBuilder sb = new StringBuilder("GrepProcess");
+
+		for (String argv : args) {
+			sb.append(" " + argv);
 		}
 		return sb.toString();
 	}

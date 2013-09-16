@@ -23,8 +23,10 @@ public class WebCrawlerProcess implements MigratableProcess {
 	private Queue<URL> urlQueue;
 	private HashMap<URL, Boolean> urlwithoutdup;
 	private TransactionalFileOutputStream outFile;
+	private String[] args;
 
 	private volatile boolean suspending;
+	private volatile boolean running;
 
 	/**
 	 * @throws Exception
@@ -35,7 +37,7 @@ public class WebCrawlerProcess implements MigratableProcess {
 			System.out.println("usage: MigratableProcess <URL> <ouputFile>");
 			throw new Exception("Invalid Arguments");
 		}
-
+		this.args = args;
 		urlQueue = new LinkedList<URL>();
 		urlwithoutdup = new HashMap<URL, Boolean>();
 
@@ -58,6 +60,7 @@ public class WebCrawlerProcess implements MigratableProcess {
 	 */
 	@Override
 	public void run() {
+		running = true;
 		PrintStream out = new PrintStream(outFile);
 
 		while (!urlQueue.isEmpty() && !suspending) {
@@ -97,11 +100,17 @@ public class WebCrawlerProcess implements MigratableProcess {
 				}
 			} catch (MalformedURLException e) {
 				// just ignore, some links just cannot be open
-				//System.out.println("Exception: " + e);
-				//e.printStackTrace();
+				// System.out.println("Exception: " + e);
+				// e.printStackTrace();
 			} catch (IOException e) {
 				e.printStackTrace();
 			}
+		}
+		if (suspending) {
+			System.out.println("WebCrawlerProcess suspended!");
+		} else {
+			System.out.println("WebCrawlerProcess complete!");
+			running = false;
 		}
 		suspending = false;
 	}
@@ -113,15 +122,21 @@ public class WebCrawlerProcess implements MigratableProcess {
 	 */
 	@Override
 	public void suspend() {
-		suspending = true;
-		outFile.setMigrated(true);
-		while (suspending)
-			;
-
+		if (running) {
+			suspending = true;
+			outFile.setMigrated(true);
+			while (suspending)
+				;
+		}
 	}
 
 	public String toString() {
-		return null;
+		StringBuilder sb = new StringBuilder("WebCrawlerProcess");
+
+		for (String argv : args) {
+			sb.append(" " + argv);
+		}
+		return sb.toString();
 	}
 
 }
