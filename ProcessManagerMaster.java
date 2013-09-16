@@ -19,7 +19,10 @@ public class ProcessManagerMaster extends ProcessManager {
 	 */
 	Semaphore hostInfoMutex;
 
-	final int MasterPeriod = 12000;
+	/*
+	 * period to call checkHeartbeat: milliseconds.
+	 */
+	final int MasterPeriod = 15000;
 
 	public ProcessManagerMaster() {
 		hostInfoList = new ArrayList<HostInfo>();
@@ -158,6 +161,8 @@ public class ProcessManagerMaster extends ProcessManager {
 						System.out.println("\nRetrying acquire mutex.");
 					}
 				}
+				
+				boolean hostExists=false;
 
 				for (Iterator<HostInfo> it = hostInfoList.iterator(); it
 						.hasNext();) {
@@ -168,12 +173,14 @@ public class ProcessManagerMaster extends ProcessManager {
 						hostp.jobCount = beat.jobCount;
 						hostp.lastTime = System.currentTimeMillis();
 						hostp.jobs = beat.jobs;
+						
+						hostExists=true;
 						break;
 					}
 				}
 				hostInfoMutex.release();
 
-				break;
+				if(hostExists==true) break;
 
 			case reg:
 				/*
