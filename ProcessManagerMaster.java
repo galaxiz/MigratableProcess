@@ -19,7 +19,7 @@ public class ProcessManagerMaster extends ProcessManager {
 	 */
 	Semaphore hostInfoMutex;
 
-	final int MasterPeriod = 15000;
+	final int MasterPeriod = 12000;
 
 	public ProcessManagerMaster() {
 		hostInfoList = new ArrayList<HostInfo>();
@@ -190,6 +190,9 @@ public class ProcessManagerMaster extends ProcessManager {
 						System.out.println(hostp.host + ":"
 								+ hostp.port.toString() + "--> JOB COUNT:"
 								+ hostp.jobCount.toString());
+						for(String commandLine:hostp.jobs){
+							System.out.println("  "+commandLine);
+						}
 					}
 					hostInfoMutex.release();
 				} else {
@@ -289,6 +292,7 @@ public class ProcessManagerMaster extends ProcessManager {
 						//Find the right HostInfo object.
 						hostp.jobCount = beat.jobCount;
 						hostp.lastTime = System.currentTimeMillis();
+						hostp.jobs=beat.jobs;
 						break;
 					}
 				}
@@ -305,6 +309,7 @@ public class ProcessManagerMaster extends ProcessManager {
 				hi.port = port; //port is the command listener port of slave node.
 				hi.jobCount = 0;//initial job count
 				hi.lastTime = System.currentTimeMillis();
+				hi.jobs=new ArrayList<String>();
 
 				hostInfoMutex.acquire();
 				hostInfoList.add(hi);

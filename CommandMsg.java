@@ -13,4 +13,13 @@ public class CommandMsg implements Serializable{
     Type type;
 
     public String args;
+  
+	public CommandMsg() {
+	}
+
+	public CommandMsg(Type type, String args) {
+		super();
+		this.type = type;
+		this.args = args;
+	}
 }
