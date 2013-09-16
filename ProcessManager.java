@@ -9,6 +9,8 @@ import java.net.*;
  * 
  */
 public class ProcessManager {
+	Integer globalID=0;
+	
 	// static entry point
 	public static void main(String args[]) {
 		if (args.length != 0) {
