@@ -1,5 +1,11 @@
+import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
+import java.util.Iterator;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.zip.ZipEntry;
+import java.util.zip.ZipInputStream;
 import java.util.zip.ZipOutputStream;
 
 /**
@@ -12,7 +18,7 @@ import java.util.zip.ZipOutputStream;
  */
 public class ZipFileProcess implements MigratableProcess {
 
-	private TransactionalFileInputStream inFile;
+	private List<File> fileList;
 	private TransactionalFileOutputStream outFile;
 	private String outFileName;
 	private String inFileName;
@@ -29,6 +35,7 @@ public class ZipFileProcess implements MigratableProcess {
 					.println("usage: ZipFileProcess <inputFile> <outputFile>");
 			throw new Exception("Invalid Arguments");
 		}
+
 		inFileName = args[0];
 		outFileName = args[1];
 
@@ -37,7 +44,6 @@ public class ZipFileProcess implements MigratableProcess {
 			throw new Exception("Invalid OutputFile Name");
 		}
 
-		inFile = new TransactionalFileInputStream(inFileName);
 		outFile = new TransactionalFileOutputStream(outFileName, false);
 	}
 
@@ -53,10 +59,17 @@ public class ZipFileProcess implements MigratableProcess {
 
 		try {
 			ZipOutputStream zout = new ZipOutputStream(outFile);
-			ZipEntry ze = new ZipEntry(inFileName);
-			zout.putNextEntry(ze);
-
-			while (!suspending) {
+			
+			fileList = new LinkedList<File>();
+			generateList(inFileName);
+			
+			for (Iterator<File> it = fileList.iterator(); it.hasNext()
+					&& !suspending;) {
+				File curFile = it.next();
+				ZipEntry ze = new ZipEntry(curFile.getName());
+				zout.putNextEntry(ze);
+				FileInputStream inFile = new FileInputStream(
+						curFile.getAbsolutePath());
 				int len;
 				while ((len = inFile.read(buffer)) > 0) {
 					zout.write(buffer, 0, len);
@@ -66,21 +79,42 @@ public class ZipFileProcess implements MigratableProcess {
 						e.printStackTrace();
 					}
 				}
+				it.remove();
+				zout.closeEntry();
+				inFile.close();
 			}
-			
+
+			if (suspending) {
+				System.out.println("Zipping Suspended");
+			} else {
+				System.out.println("Zipping Compliete!");
+			}
+
 			suspending = false;
 
-			inFile.close();
-			zout.closeEntry();
-			zout.close();
-			outFile.close();
-
-			System.out.println("Zipping complete!");
+			zout.finish();
 		} catch (IOException e) {
 			System.out.println("Exception" + e);
 			e.printStackTrace();
 		}
 
+	}
+
+	public void generateList(String startFile) {
+		File curFile = new File(startFile);
+		if (curFile.isDirectory()) {
+			for (File sub : curFile.listFiles()) {
+				if (sub.isFile()) {
+					fileList.add(sub);
+				} else {
+					generateList(sub.getName());
+				}
+			}
+		}
+
+		if (curFile.isFile()) {
+			fileList.add(curFile);
+		}
 	}
 
 	/*
@@ -91,7 +125,6 @@ public class ZipFileProcess implements MigratableProcess {
 	@Override
 	public void suspend() {
 		suspending = true;
-		inFile.setMigrated(true);
 		outFile.setMigrated(true);
 		while (suspending)
 			;

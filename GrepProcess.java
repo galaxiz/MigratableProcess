@@ -1,9 +1,9 @@
 import java.io.BufferedReader;
+import java.io.DataInputStream;
 import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintStream;
-import java.io.PrintWriter;
 
 public class GrepProcess implements MigratableProcess {
 	private TransactionalFileInputStream inFile;
@@ -29,8 +29,9 @@ public class GrepProcess implements MigratableProcess {
 
 	public void run() {
 		PrintStream out = new PrintStream(outFile);
-		InputStreamReader inreader = new InputStreamReader(inFile);
-		BufferedReader in = new BufferedReader(inreader);
+		DataInputStream in = new DataInputStream(inFile);
+		//InputStreamReader inreader = new InputStreamReader(inFile);
+		//BufferedReader in = new BufferedReader(inreader);
 		
 		try {
 			while (!suspending) {
@@ -46,11 +47,11 @@ public class GrepProcess implements MigratableProcess {
 
 				// Make grep take longer so that we don't require extremely
 				// large files for interesting results
-//				try {
-//					Thread.sleep(1*1000);
-//				} catch (InterruptedException e) {
-//					// ignore it
-//				}
+				try {
+					Thread.sleep(1*1000);
+				} catch (InterruptedException e) {
+					// ignore it
+				}
 			}
 		} catch (EOFException e) {
 			// End of File

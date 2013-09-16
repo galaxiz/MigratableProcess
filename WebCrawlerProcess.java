@@ -1,7 +1,7 @@
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.io.PrintWriter;
+import java.io.PrintStream;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.HashMap;
@@ -58,7 +58,7 @@ public class WebCrawlerProcess implements MigratableProcess {
 	 */
 	@Override
 	public void run() {
-		PrintWriter out = new PrintWriter(outFile);
+		PrintStream out = new PrintStream(outFile);
 
 		while (!urlQueue.isEmpty() && !suspending) {
 			try {
@@ -91,7 +91,7 @@ public class WebCrawlerProcess implements MigratableProcess {
 							System.out.println("Found a new link, the URL is: "
 									+ urlAddress);
 							urlQueue.add(tmpURL);
-							out.write(tmpURL.toString() + "\n");
+							out.println(tmpURL.toString());
 						}
 					}
 				}

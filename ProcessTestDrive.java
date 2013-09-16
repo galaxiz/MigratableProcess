@@ -21,25 +21,25 @@ public class ProcessTestDrive {
 			GrepProcess gp = new GrepProcess(test);
 			Thread testdrive = new Thread((Runnable) gp);
 			testdrive.start();
-			//Thread.sleep(50);
-//			int i = 0;
-//			while (i < 10) {
-//				gp.suspend();
-//				//Thread.sleep(50);
-//				
-//				FileOutputStream fout=new FileOutputStream("serial");
-//				ObjectOutputStream out=new ObjectOutputStream(fout);
-//				out.writeObject(gp);
-//				
-//				FileInputStream fin=new FileInputStream("serial");
-//				ObjectInputStream in=new ObjectInputStream(fin);
-//				MigratableProcess job=(MigratableProcess)in.readObject();
-//				
-//				Thread testdrive2 = new Thread((Runnable) job);
-//				testdrive2.start();
-//				//Thread.sleep(50);
-//				i++;
-//			}
+			Thread.sleep(500);
+			int i = 0;
+			while (i < 1) {
+				gp.suspend();
+				Thread.sleep(500);
+
+				FileOutputStream fout = new FileOutputStream("serial");
+				ObjectOutputStream out = new ObjectOutputStream(fout);
+				out.writeObject(gp);
+
+				FileInputStream fin = new FileInputStream("serial");
+				ObjectInputStream in = new ObjectInputStream(fin);
+				MigratableProcess job = (MigratableProcess) in.readObject();
+
+				Thread testdrive2 = new Thread((Runnable) job);
+				testdrive2.start();
+				Thread.sleep(50);
+				i++;
+			}
 		} catch (Exception e) {
 			System.out.println("Exception " + e);
 			e.printStackTrace();
@@ -47,34 +47,41 @@ public class ProcessTestDrive {
 	}
 
 	private void testZip() {
-		String test[] = {"ziptest.txt", "zip1.zip" };
-		
+		String test[] = { "zip", "test1zip.zip" };
+
 		try {
 			ZipFileProcess zfp = new ZipFileProcess(test);
-			Thread testdrive = new Thread((Runnable)zfp);
+			Thread testdrive = new Thread((Runnable) zfp);
 			testdrive.start();
 			Thread.sleep(500);
-			int i = 0;
-			while (i < 100) {
-				zfp.suspend();
-				Thread.sleep(500);
-				// testdrive.stop();
-				Thread testdrive2 = new Thread((Runnable) zfp);
-				testdrive2.start();
-				Thread.sleep(500);
-				i++;
-			}
+
+			zfp.suspend();
+			Thread.sleep(500);
+			testdrive.stop();
+			
+			FileOutputStream fout = new FileOutputStream("serial");
+			ObjectOutputStream out = new ObjectOutputStream(fout);
+			out.writeObject(zfp);
+
+			FileInputStream fin = new FileInputStream("serial");
+			ObjectInputStream in = new ObjectInputStream(fin);
+			zfp = (ZipFileProcess) in.readObject();
+			
+			Thread testdrive2 = new Thread((Runnable) zfp);
+			testdrive2.start();
+			Thread.sleep(500);
+
 		} catch (Exception e) {
 			System.out.println("Exception " + e);
 			e.printStackTrace();
 		}
 
 	}
-	
+
 	public void testSerializable() {
 		String test[] = { "gig", "in.txt", "out.txt" };
 		try {
-			MigratableProcess job=new TestSerializableJob();
+			MigratableProcess job = new TestSerializableJob();
 			Thread testdrive = new Thread((Runnable) job);
 			testdrive.start();
 			Thread.sleep(500);
@@ -82,15 +89,15 @@ public class ProcessTestDrive {
 			while (i < 10) {
 				job.suspend();
 				Thread.sleep(500);
-				
-				FileOutputStream fout=new FileOutputStream("serial");
-				ObjectOutputStream out=new ObjectOutputStream(fout);
+
+				FileOutputStream fout = new FileOutputStream("serial");
+				ObjectOutputStream out = new ObjectOutputStream(fout);
 				out.writeObject(job);
-				
-				FileInputStream fin=new FileInputStream("serial");
-				ObjectInputStream in=new ObjectInputStream(fin);
-				job=(MigratableProcess)in.readObject();
-				
+
+				FileInputStream fin = new FileInputStream("serial");
+				ObjectInputStream in = new ObjectInputStream(fin);
+				job = (MigratableProcess) in.readObject();
+
 				Thread testdrive2 = new Thread((Runnable) job);
 				testdrive2.start();
 				Thread.sleep(500);
@@ -102,26 +109,48 @@ public class ProcessTestDrive {
 		}
 	}
 
-	public void testPattern(){
-		Pattern p = Pattern.compile("<a([\\s]*?href[\\s]*?=[\\s]*?\"(.+?)\")>.+?</a>");
-		Matcher m = p.matcher("<a href   =   \"http://www.w3schools.com/\">Visit W3Schools</a>");
-		if (m.find()){
+	public void testPattern() {
+		Pattern p = Pattern
+				.compile("<a([\\s]*?href[\\s]*?=[\\s]*?\"(.+?)\")>.+?</a>");
+		Matcher m = p
+				.matcher("<a href   =   \"http://www.w3schools.com/\">Visit W3Schools</a>");
+		if (m.find()) {
 			System.out.println(m.group(1));
 			System.out.println(m.group(2));
 		}
 	}
-	
-	public void testWebCrawler(){
-		String test[] = {"http://www.cnn.com", "webcrawler.txt"};
+
+	public void testWebCrawler() {
+		String test[] = { "http://www.cnn.com", "webcrawler.txt" };
 		try {
-			MigratableProcess job=new WebCrawlerProcess(test);
-			Thread testdrive = new Thread((Runnable) job);
+			MigratableProcess wcp = new WebCrawlerProcess(test);
+			Thread testdrive = new Thread((Runnable) wcp);
 			testdrive.start();
+			Thread.sleep(2000);
+
+			wcp.suspend();
+			System.out.println("suspended");
+			Thread.sleep(500);
+			testdrive.stop();
+			
+			FileOutputStream fout = new FileOutputStream("serial");
+			ObjectOutputStream out = new ObjectOutputStream(fout);
+			out.writeObject(wcp);
+
+			FileInputStream fin = new FileInputStream("serial");
+			ObjectInputStream in = new ObjectInputStream(fin);
+			wcp = (WebCrawlerProcess) in.readObject();
+			
+			Thread testdrive2 = new Thread((Runnable) wcp);
+			System.out.println("restarted");
+			testdrive2.start();
+			Thread.sleep(500);
 		} catch (Exception e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 	}
+
 	/**
 	 * Sep 12, 2013
 	 * 
@@ -129,11 +158,11 @@ public class ProcessTestDrive {
 	 */
 	public static void main(String[] args) {
 		ProcessTestDrive ptd = new ProcessTestDrive();
-		ptd.testGrep();
+		// ptd.testGrep();
 		//ptd.testZip();
-		//ptd.testSerializable();
-		//ptd.testPattern();
-		//ptd.testWebCrawler();
+		// ptd.testSerializable();
+		// ptd.testPattern();
+		 ptd.testWebCrawler();
 	}
 
 }
