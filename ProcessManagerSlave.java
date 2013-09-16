@@ -29,7 +29,7 @@ public class ProcessManagerSlave extends ProcessManager {
 	int listenerPort;
 
 	/*
-	 * heartbeat period.
+	 * heartbeat period: milliseconds
 	 */
 	final int SlavePeriod = 3000;
 
@@ -68,6 +68,12 @@ public class ProcessManagerSlave extends ProcessManager {
 		new Timer(true).scheduleAtFixedRate(new TimerTask() {
 			public void run() {
 				heartbeatSender();
+			}
+		}, 0, SlavePeriod);
+
+		new Timer(true).scheduleAtFixedRate(new TimerTask() {
+			public void run() {
+				jobDoneInfoSender();
 			}
 		}, 0, SlavePeriod);
 	}
@@ -124,21 +130,34 @@ public class ProcessManagerSlave extends ProcessManager {
 	}
 
 	void heartbeatSender() {
-		ArrayList<HeartbeatMsg> beatList=new ArrayList<HeartbeatMsg>();
-		
 		HeartbeatMsg beat = new HeartbeatMsg();
 		beat.type = HeartbeatMsg.Type.normal;
 		beat.port = listenerPort;
 		beat.jobs = new ArrayList<String>();
 
+		beat.jobCount = jobInfoList.size();
+		for (Iterator<JobInfo> it = jobInfoList.iterator(); it.hasNext();) {
+			JobInfo jobInfop = it.next();
+			beat.jobs.add("ID:" + jobInfop.id + " --> " + jobInfop.commandLine);
+		}
+
+		sendObjectTo(host, 9000, beat);
+	}
+
+	void jobDoneInfoSender() {
+		ArrayList<HeartbeatMsg> beatList = new ArrayList<HeartbeatMsg>();
+
 		/*
 		 * poll to check whether jobs are done.
 		 */
-		try {
-			jobInfoMutex.acquire();
-		} catch (InterruptedException e) {
-			System.out
-					.println("Retrying to acquire mutex to check status of jobs");
+		while (true) {
+			try {
+				jobInfoMutex.acquire();
+				break;
+			} catch (InterruptedException e) {
+				System.out
+						.println("Retrying to acquire mutex to check status of jobs");
+			}
 		}
 
 		for (Iterator<JobInfo> it = jobInfoList.iterator(); it.hasNext();) {
@@ -146,62 +165,25 @@ public class ProcessManagerSlave extends ProcessManager {
 			if (jobInfop.thread.isAlive() == false) {
 				System.out.println("Job: " + jobInfop.job.toString()
 						+ " has finished.");
-				
-				HeartbeatMsg beatTmp=new HeartbeatMsg();
-				beatTmp.type=HeartbeatMsg.Type.done;
-				beatTmp.port=listenerPort;
-				beatTmp.jobs=new ArrayList<String>();
-				beatTmp.jobs.add(jobInfop.job.toString()+" finished.");
-				
+
+				HeartbeatMsg beatTmp = new HeartbeatMsg();
+				beatTmp.type = HeartbeatMsg.Type.done;
+				beatTmp.port = listenerPort;
+				beatTmp.jobs = new ArrayList<String>();
+				beatTmp.jobs.add(jobInfop.job.toString() + " finished.");
+
 				beatList.add(beatTmp);
-				
+
 				it.remove();
-			} else {
-				beat.jobs.add("ID:"+jobInfop.id+" --> "+jobInfop.commandLine);
 			}
 		}
 
-		beat.jobCount = jobInfoList.size();
-
 		jobInfoMutex.release();
 
-		sendObjectTo(host, 9000, beat);
-		
-		//send other info
-		for(HeartbeatMsg beatTmp:beatList){
+		// send other info
+		for (HeartbeatMsg beatTmp : beatList) {
 			sendObjectTo(host, 9000, beatTmp);
 		}
-	}
-
-	boolean newJob(String command, String args[]) {
-		try {
-			JobInfo jobInfo = new JobInfo();
-
-			Class<?> jobClass = Class.forName(command);
-			MigratableProcess job = (MigratableProcess) jobClass
-					.getConstructor(String[].class).newInstance((Object) args);
-
-			jobInfo.job = job;
-			jobInfo.thread = new Thread((Runnable) job);
-			jobInfo.commandLine = job.toString();
-			jobInfo.id=globalID++;
-
-			jobInfoMutex.acquire();
-			jobInfoList.add(jobInfo);
-			jobInfo.thread.start();
-			jobInfoMutex.release();
-		} catch (ClassNotFoundException e) {
-			System.out.println("command not found.");
-			return false;
-		} catch (NoSuchMethodException e) {
-			System.out.println("Not a standard job.");
-			return false;
-		} catch (Exception e) {
-			System.out.println("Create job failed.");
-			return false;
-		}
-
-		return true;
 	}
 
 	void commandHandler(Socket socket) {
@@ -232,54 +214,14 @@ public class ProcessManagerSlave extends ProcessManager {
 		}
 	}
 
-	boolean sendJob(Socket socket, JobInfo jobInfo) {
-		/*
-		 * Suspend job
-		 */
-		jobInfo.job.suspend();
-
-		/*
-		 * Serialize to receiver.
-		 */
-		try {
-			ObjectOutputStream out = new ObjectOutputStream(
-					socket.getOutputStream());
-			out.writeObject(jobInfo.job);
-			out.flush();
-		} catch (IOException e) {
-			System.out.println("Error in sending job to other slave node.");
-			return false;
-		}
-
-		return true;
-	}
-
-	boolean resumeJob(MigratableProcess job) {
-		JobInfo jobInfo = new JobInfo();
-
-		jobInfo.job = job;
-		jobInfo.thread = new Thread((Runnable) job);
-		jobInfo.commandLine = job.toString();
-		jobInfo.id=globalID++;
-		
-		try {
-			jobInfoMutex.acquire();
-		} catch (InterruptedException e) {
-			System.out.println("Retrying to acquire mutex to resume job.");
-		}
-
-		jobInfoList.add(jobInfo);
-		jobInfo.thread.start();
-		jobInfoMutex.release();
-
-		return true;
-	}
-
 	void handleWaitJob(Socket socket) {
-		try {
-			jobInfoMutex.acquire();
-		} catch (InterruptedException e) {
-			System.out.println("Retrying to acquire mutex to send job.");
+		while (true) {
+			try {
+				jobInfoMutex.acquire();
+				break;
+			} catch (InterruptedException e) {
+				System.out.println("Retrying to acquire mutex to send job.");
+			}
 		}
 
 		JobInfo jobInfo = jobInfoList.get(new Random().nextInt(jobInfoList
@@ -335,13 +277,13 @@ public class ProcessManagerSlave extends ProcessManager {
 
 		newJob(infos[0], args);
 	}
-	
-	void handleKillJob(CommandMsg cmsg){
-		int jobId=Integer.parseInt(cmsg.args);
-		String jobString=null;
-		
-		System.out.println("Starting to kill "+jobId);
-		
+
+	void handleKillJob(CommandMsg cmsg) {
+		int jobId = Integer.parseInt(cmsg.args);
+		String jobString = null;
+
+		System.out.println("Starting to kill " + jobId);
+
 		while (true) {
 			try {
 				jobInfoMutex.acquire();
@@ -350,25 +292,102 @@ public class ProcessManagerSlave extends ProcessManager {
 				System.out.println("Retrying to acquire mutex to send job.");
 			}
 		}
-		
-		for(JobInfo jobp:jobInfoList){
-			if(jobp.id==jobId){
-				//TODO: may cause deadlock.
-				jobString=jobp.job.toString();
+
+		for (JobInfo jobp : jobInfoList) {
+			if (jobp.id == jobId) {
+				// TODO: may cause deadlock.
+				jobString = jobp.job.toString();
 				jobp.job.suspend();
 				jobInfoList.remove(jobp);
 				break;
 			}
 		}
-		
+
 		jobInfoMutex.release();
-		
-		HeartbeatMsg beat=new HeartbeatMsg();
-		beat.type=HeartbeatMsg.Type.done;
-		beat.port=listenerPort;
-		beat.jobs=new ArrayList<String>();
-		beat.jobs.add(jobString+" was killed.");
-		
-		sendObjectTo(host,9000,beat);
+
+		HeartbeatMsg beat = new HeartbeatMsg();
+		beat.type = HeartbeatMsg.Type.done;
+		beat.port = listenerPort;
+		beat.jobs = new ArrayList<String>();
+		beat.jobs.add(jobString + " was killed.");
+
+		sendObjectTo(host, 9000, beat);
+	}
+
+	boolean newJob(String command, String args[]) {
+		try {
+			JobInfo jobInfo = new JobInfo();
+
+			Class<?> jobClass = Class.forName(command);
+			MigratableProcess job = (MigratableProcess) jobClass
+					.getConstructor(String[].class).newInstance((Object) args);
+
+			jobInfo.job = job;
+			jobInfo.thread = new Thread((Runnable) job);
+			jobInfo.commandLine = job.toString();
+			jobInfo.id = globalID++;
+
+			jobInfoMutex.acquire();
+			jobInfoList.add(jobInfo);
+			jobInfo.thread.start();
+			jobInfoMutex.release();
+		} catch (ClassNotFoundException e) {
+			System.out.println("command not found.");
+			return false;
+		} catch (NoSuchMethodException e) {
+			System.out.println("Not a standard job.");
+			return false;
+		} catch (Exception e) {
+			System.out.println("Create job failed.");
+			return false;
+		}
+
+		return true;
+	}
+
+	boolean sendJob(Socket socket, JobInfo jobInfo) {
+		/*
+		 * Suspend job
+		 */
+		jobInfo.job.suspend();
+
+		/*
+		 * Serialize to receiver.
+		 */
+		try {
+			ObjectOutputStream out = new ObjectOutputStream(
+					socket.getOutputStream());
+			out.writeObject(jobInfo.job);
+			out.flush();
+		} catch (IOException e) {
+			System.out.println("Error in sending job to other slave node.");
+			return false;
+		}
+
+		return true;
+	}
+
+	boolean resumeJob(MigratableProcess job) {
+		JobInfo jobInfo = new JobInfo();
+
+		jobInfo.job = job;
+		jobInfo.thread = new Thread((Runnable) job);
+		jobInfo.commandLine = job.toString();
+		jobInfo.id = globalID++;
+
+		while (true) {
+			try {
+				jobInfoMutex.acquire();
+				break;
+			} catch (InterruptedException e) {
+				System.out.println("Retrying to acquire mutex to resume job.");
+			}
+		}
+
+		jobInfoList.add(jobInfo);
+		jobInfo.thread.start();
+		jobInfoMutex.release();
+
+		return true;
 	}
 }
