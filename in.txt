@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 “Larry was a critical member of my team as we faced down the worst 
 economic crisis since the Great Depression, and it was in no small 
 part because of his expertise, wisdom and leadership that we wrest
@@ -64,3 +65,4 @@ In a letter signed by 20 Senate Democrats in July, the lawmakers urged
  Mr. Obama to nominate Ms. Yellen saying that “at a time of persistently
   high national unemployment, the next chairman must focus on returning
    our economy to full employment.”
+>>>>>>> branch 'master' of https://github.com/galaxiz/MigratableWork.git
