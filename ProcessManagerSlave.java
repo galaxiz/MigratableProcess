@@ -292,10 +292,14 @@ public class ProcessManagerSlave extends ProcessManager {
 				System.out.println("Retrying to acquire mutex to send job.");
 			}
 		}
+		
+		boolean exists=false;
 
 		for (JobInfo jobp : jobInfoList) {
 			if (jobp.id == jobId) {
 				// TODO: may cause deadlock.
+				exists=true;
+				
 				jobString = jobp.job.toString();
 				jobp.job.suspend();
 				jobInfoList.remove(jobp);
@@ -309,7 +313,12 @@ public class ProcessManagerSlave extends ProcessManager {
 		beat.type = HeartbeatMsg.Type.done;
 		beat.port = listenerPort;
 		beat.jobs = new ArrayList<String>();
-		beat.jobs.add(jobString + " was killed.");
+		if(exists){
+			beat.jobs.add(jobString + " was killed.");
+		}
+		else {
+			beat.jobs.add("Job not found.");
+		}
 
 		sendObjectTo(host, 9000, beat);
 	}
