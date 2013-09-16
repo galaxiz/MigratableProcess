@@ -4,6 +4,7 @@ import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintStream;
+import java.io.PrintWriter;
 
 public class GrepProcess implements MigratableProcess {
 	private TransactionalFileInputStream inFile;
@@ -30,8 +31,6 @@ public class GrepProcess implements MigratableProcess {
 	public void run() {
 		PrintStream out = new PrintStream(outFile);
 		DataInputStream in = new DataInputStream(inFile);
-		//InputStreamReader inreader = new InputStreamReader(inFile);
-		//BufferedReader in = new BufferedReader(inreader);
 		
 		try {
 			while (!suspending) {
