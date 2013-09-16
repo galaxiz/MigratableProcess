@@ -1,4 +1,6 @@
+package ProcessManager;
 import java.io.Serializable;
+import Processes.MigratableProcess;
 
 /**
  * 

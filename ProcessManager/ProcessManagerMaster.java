@@ -1,9 +1,12 @@
+package ProcessManager;
 import java.lang.*;
 import java.lang.reflect.*;
 import java.io.*;
 import java.util.*;
 import java.net.*;
 import java.util.concurrent.*;
+
+import ProcessManager.CommandMsg.Type;
 
 /**
  * @author Xi Zhao
