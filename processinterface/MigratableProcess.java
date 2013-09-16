@@ -1,4 +1,4 @@
-package Processes;
+package processinterface;
 import java.io.Serializable;
 
 /**

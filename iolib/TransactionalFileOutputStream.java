@@ -1,4 +1,4 @@
-package IOlib;
+package iolib;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;

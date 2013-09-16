@@ -1,4 +1,6 @@
-package Processes;
+package testprocesses;
+import iolib.TransactionalFileOutputStream;
+
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -11,7 +13,7 @@ import java.util.Queue;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import IOlib.TransactionalFileOutputStream;
+import processinterface.MigratableProcess;
 
 /**
  * This is a simple web crawler which 

@@ -1,4 +1,4 @@
-package ProcessManager;
+package processmanager;
 import java.io.*;
 import java.util.ArrayList;
 

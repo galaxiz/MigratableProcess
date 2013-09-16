@@ -1,5 +1,7 @@
-package Processes;
+package testprocesses;
 import java.io.Serializable;
+
+import processinterface.MigratableProcess;
 
 /**
  * 

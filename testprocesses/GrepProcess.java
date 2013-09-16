@@ -1,4 +1,7 @@
-package Processes;
+package testprocesses;
+import iolib.TransactionalFileInputStream;
+import iolib.TransactionalFileOutputStream;
+
 import java.io.BufferedReader;
 import java.io.DataInputStream;
 import java.io.EOFException;
@@ -7,8 +10,7 @@ import java.io.InputStreamReader;
 import java.io.PrintStream;
 import java.io.PrintWriter;
 
-import IOlib.TransactionalFileInputStream;
-import IOlib.TransactionalFileOutputStream;
+import processinterface.MigratableProcess;
 
 public class GrepProcess implements MigratableProcess {
 	private TransactionalFileInputStream inFile;
