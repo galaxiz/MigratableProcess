@@ -390,7 +390,7 @@ public class ProcessManagerMaster extends ProcessManager {
 			jobId=Integer.parseInt(infos[2]);
 		}
 		catch(Exception e){
-			System.out.println("Bad kill command");
+			System.out.println("Usage: kill [host id] [job id]");
 			return;
 		}
 		
