@@ -13,7 +13,7 @@ public class ProcessManagerMaster extends ProcessManager {
 	 * slave nodes information
 	 */
 	ArrayList<HostInfo> hostInfoList;
-	
+
 	/*
 	 * mutex for hostInfoList
 	 */
@@ -68,6 +68,210 @@ public class ProcessManagerMaster extends ProcessManager {
 	 * those alive slave nodes.
 	 */
 	void checkHeartbeatAndWorkload() {
+		checkAliveSlaves();
+
+		balanceWorkload();
+	}
+
+	/**
+	 * Prompt to execute command from administrator.
+	 */
+	void prompt() {
+		String line;
+
+		while (true) {
+			System.out.print("> ");
+			BufferedReader br = new BufferedReader(new InputStreamReader(
+					System.in));
+			try {
+				line = br.readLine();
+
+				if (line.equals("exit")) {
+					break;
+				} else if (line.equals("ps")) {
+					ps();
+				} else {					
+					if(line.trim().split(" +")[0].equals("kill")){
+						killJob(line);
+					}
+					else {
+						// default: create a new job with the command.
+						// TODO: add more information about this job.
+						createJob(line);
+					}
+				}
+			} catch (IOException e1) {
+				System.out.println("\nOops, this command cannot be processed.");
+			}
+		}
+	}
+
+	/**
+	 * Listen to heartbeat from slave nodes.
+	 */
+	void heartbeatListener() {
+		// TODO: currently Master always use port 9000.
+		try {
+			ServerSocket socket = new ServerSocket(9000);
+			while (true) {
+				final Socket insocket = socket.accept();
+
+				new Thread(new Runnable() {
+					public void run() {
+						heartbeatHandler(insocket);
+					}
+				}).start();
+			}
+		} catch (IOException e) {
+			System.out.println("Listener has encouner a unknown error.");
+			e.printStackTrace();
+		}
+	}
+
+	/**
+	 * Handle each heartbeat messege from slave nodes.
+	 * 
+	 * @param socket
+	 * @return
+	 */
+	boolean heartbeatHandler(Socket socket) {
+		try {
+			ObjectInputStream in = new ObjectInputStream(
+					socket.getInputStream());
+			HeartbeatMsg beat = (HeartbeatMsg) in.readObject();
+
+			String ip = socket.getInetAddress().getHostAddress();
+			int port = beat.port;
+
+			switch (beat.type) {
+			case normal:
+				/*
+				 * normal heartbeat
+				 * 
+				 * TODO: try to locate HostInfo by hash, other than searching.
+				 */
+				while (true) {
+					try {
+						hostInfoMutex.acquire();
+						break;
+					} catch (InterruptedException e) {
+						System.out.println("\nRetrying acquire mutex.");
+					}
+				}
+
+				for (Iterator<HostInfo> it = hostInfoList.iterator(); it
+						.hasNext();) {
+					HostInfo hostp = it.next();
+
+					if (hostp.host.equals(ip) && hostp.port == port) {
+						// Find the right HostInfo object.
+						hostp.jobCount = beat.jobCount;
+						hostp.lastTime = System.currentTimeMillis();
+						hostp.jobs = beat.jobs;
+						break;
+					}
+				}
+				hostInfoMutex.release();
+
+				break;
+
+			case reg:
+				/*
+				 * Register request from slave node.
+				 */
+				HostInfo hi = new HostInfo();
+				hi.host = ip;
+				hi.port = port; // port is the command listener port of slave
+								// node.
+				hi.jobCount = 0;// initial job count
+				hi.lastTime = System.currentTimeMillis();
+				hi.jobs = new ArrayList<String>();
+				hi.id=globalID++;
+				
+
+				hostInfoMutex.acquire();
+				hostInfoList.add(hi);
+				hostInfoMutex.release();
+
+				/*
+				 * Response ok to slave node. TODO: better response required.
+				 */
+				PrintWriter out = new PrintWriter(socket.getOutputStream());
+				out.write("ok\n");
+				out.flush();
+
+				break;
+			case done:
+				System.out.println(beat.jobs.get(0));
+				break;
+			}
+		} catch (IOException e) {
+			System.out
+					.println("\nUnknow error encountered when handle heartbeat message.");
+			return false;
+		} catch (ClassNotFoundException e) {
+			System.out
+					.println("\nUnknow error encountered when handle heartbeat message.");
+			return false;
+		} catch (InterruptedException e) {
+			System.out
+					.println("\nUnknow error encountered when handle heartbeat message.");
+			return false;
+		}
+
+		return true;
+	}
+
+	void ps() {
+		while (true) {
+			try {
+				hostInfoMutex.acquire();
+				break;
+			} catch (InterruptedException e) {
+				System.out.println("\nRetrying to acquire mutex. (promp)");
+			}
+		}
+		for (HostInfo hostp : hostInfoList) {
+			System.out.println("ID:"+hostp.id.toString()+" "+hostp.host + ":" + hostp.port.toString()
+					+ "--> JOB COUNT:" + hostp.jobCount.toString());
+			for (String commandLine : hostp.jobs) {
+				System.out.println("\t" + commandLine);
+			}
+		}
+		hostInfoMutex.release();
+	}
+
+	void createJob(String commandLine) {
+		CommandMsg cm = new CommandMsg();
+		cm.type = CommandMsg.Type.newJob;
+		cm.args = commandLine;
+
+		while (true) {
+			try {
+				hostInfoMutex.acquire();
+				break;
+			} catch (InterruptedException e) {
+				System.out.println("\nRetrying to acquire mutex. (promp)");
+			}
+		}
+
+		/*
+		 * TODO: currently create job to first host, to see the effect of
+		 * balancing.
+		 */
+
+		// HostInfo randHostInfo=hostInfoList.get(new
+		// Random().nextInt(hostInfoList.size()));
+		HostInfo randHostInfo = hostInfoList.get(0);
+		sendObjectTo(randHostInfo.host, randHostInfo.port, cm);
+
+		System.out.println("Try to create job on slave node: "
+				+ randHostInfo.host + ":" + randHostInfo.port);
+
+		hostInfoMutex.release();
+	}
+	
+	void checkAliveSlaves(){
 		long curTime = System.currentTimeMillis();
 
 		/*
@@ -97,7 +301,9 @@ public class ProcessManagerMaster extends ProcessManager {
 			}
 		}
 		hostInfoMutex.release();
+	}
 
+	void balanceWorkload(){
 		while (true) {
 			try {
 				hostInfoMutex.acquire();
@@ -159,184 +365,51 @@ public class ProcessManagerMaster extends ProcessManager {
 
 		hostInfoMutex.release();
 	}
-
-	/**
-	 * Prompt to execute command from administrator.
-	 */
-	void prompt() {
-		String line;
-
+	
+	void killJob(String line){
+		String[] infos=line.trim().split(" +");
+		
+		Integer hostId;
+		Integer jobId;
+		
+		try{
+			if(infos.length!=3){
+				throw new Exception();
+			}
+			hostId=Integer.parseInt(infos[1]);
+			jobId=Integer.parseInt(infos[2]);
+		}
+		catch(Exception e){
+			System.out.println("Bad kill command");
+			return;
+		}
+		
+		CommandMsg cmsg=new CommandMsg();
+		cmsg.type=CommandMsg.Type.killJob;
+		cmsg.args=jobId.toString();
+		
 		while (true) {
-			System.out.print("> ");
-			BufferedReader br = new BufferedReader(new InputStreamReader(
-					System.in));
 			try {
-				line = br.readLine();
-
-				if (line.equals("exit")) {
-					break;
-				} else if (line.equals("ps")) {
-					// TODO: add more detail information from slave nodes.
-					while (true) {
-						try {
-							hostInfoMutex.acquire();
-							break;
-						} catch (InterruptedException e) {
-							System.out
-									.println("\nRetrying to acquire mutex. (promp)");
-						}
-					}
-					for (HostInfo hostp : hostInfoList) {
-						System.out.println(hostp.host + ":"
-								+ hostp.port.toString() + "--> JOB COUNT:"
-								+ hostp.jobCount.toString());
-						for(String commandLine:hostp.jobs){
-							System.out.println("  "+commandLine);
-						}
-					}
-					hostInfoMutex.release();
-				} else {
-					// default: create a new job with the command.
-					//TODO: add more information about this job.
-					CommandMsg cm = new CommandMsg();
-					cm.type = CommandMsg.Type.newJob;
-					cm.args = line;
-
-					while (true) {
-						try {
-							hostInfoMutex.acquire();
-							break;
-						} catch (InterruptedException e) {
-							System.out
-									.println("\nRetrying to acquire mutex. (promp)");
-						}
-					}
-
-					/*
-					 * TODO: currently create job to first host, to see the
-					 * effect of balancing.
-					 */
-
-					// HostInfo randHostInfo=hostInfoList.get(new
-					// Random().nextInt(hostInfoList.size()));
-					HostInfo randHostInfo = hostInfoList.get(0);
-					sendObjectTo(randHostInfo.host, randHostInfo.port, cm);
-					
-					System.out.println("Try to create job on slave node: "+randHostInfo.host+":"+randHostInfo.port);
-
-					hostInfoMutex.release();
-				}
-			} catch (IOException e1) {
-				System.out.println("\nOops, this command cannot be processed.");
-			}
-		}
-	}
-
-	/**
-	 * Listen to heartbeat from slave nodes.
-	 */
-	void heartbeatListener() {
-		//TODO: currently Master always use port 9000.
-		try {
-			ServerSocket socket = new ServerSocket(9000);
-			while (true) {
-				final Socket insocket = socket.accept();
-
-				new Thread(new Runnable() {
-					public void run() {
-						heartbeatHandler(insocket);
-					}
-				}).start();
-			}
-		} catch (IOException e) {
-			System.out.println("Listener has encouner a unknown error.");
-			e.printStackTrace();
-		}
-	}
-
-	/**
-	 * Handle each heartbeat messege from slave nodes.
-	 * @param socket
-	 * @return
-	 */
-	boolean heartbeatHandler(Socket socket) {
-		try {
-			ObjectInputStream in = new ObjectInputStream(
-					socket.getInputStream());
-			HeartbeatMsg beat = (HeartbeatMsg) in.readObject();
-
-			String ip = socket.getInetAddress().getHostAddress();
-			int port = beat.port;
-
-			switch (beat.type) {
-			case normal:
-				/*
-				 * normal heartbeat
-				 * 
-				 * TODO: try to locate HostInfo by hash, other than searching.
-				 */
-				while (true) {
-					try {
-						hostInfoMutex.acquire();
-						break;
-					} catch (InterruptedException e) {
-						System.out.println("\nRetrying acquire mutex.");
-					}
-				}
-
-				for (Iterator<HostInfo> it = hostInfoList.iterator(); it
-						.hasNext();) {
-					HostInfo hostp = it.next();
-
-					if (hostp.host.equals(ip) && hostp.port == port) {
-						//Find the right HostInfo object.
-						hostp.jobCount = beat.jobCount;
-						hostp.lastTime = System.currentTimeMillis();
-						hostp.jobs=beat.jobs;
-						break;
-					}
-				}
-				hostInfoMutex.release();
-
-				break;
-
-			case reg:
-				/*
-				 * Register request from slave node.
-				 */
-				HostInfo hi = new HostInfo();
-				hi.host = ip;
-				hi.port = port; //port is the command listener port of slave node.
-				hi.jobCount = 0;//initial job count
-				hi.lastTime = System.currentTimeMillis();
-				hi.jobs=new ArrayList<String>();
-
 				hostInfoMutex.acquire();
-				hostInfoList.add(hi);
-				hostInfoMutex.release();
-
-				/*
-				 * Response ok to slave node.
-				 * TODO: better response required.
-				 */
-				PrintWriter out = new PrintWriter(socket.getOutputStream());
-				out.write("ok\n");
-				out.flush();
-
 				break;
+			} catch (InterruptedException e) {
+				// TODO: log function
+				System.out.println("\nRetrying to acquire mutex.");
 			}
-		} catch (IOException e) {
-			System.out.println("\nUnknow error encountered when handle heartbeat message.");
-			return false;
-		} catch (ClassNotFoundException e) {
-			System.out.println("\nUnknow error encountered when handle heartbeat message.");
-			return false;
-		} catch (InterruptedException e) {
-			System.out.println("\nUnknow error encountered when handle heartbeat message.");
-			return false;
 		}
-
-		return true;
+		boolean hostExists=false;
+		
+		for(HostInfo hostp:hostInfoList){
+			if(hostp.id==hostId){
+				hostExists=true;
+				sendObjectTo(hostp.host,hostp.port,cmsg);
+			}
+		}
+		
+		hostInfoMutex.release();
+		
+		if(hostExists==false){
+			System.out.println("Host not exists.");
+		}
 	}
-
 }

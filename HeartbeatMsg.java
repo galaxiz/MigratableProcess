@@ -8,7 +8,7 @@ import java.util.ArrayList;
  */
 public class HeartbeatMsg implements Serializable{
     public enum Type{
-        normal,reg;
+        normal,reg,done;
     }
 
     Type type;
