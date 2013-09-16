@@ -22,7 +22,9 @@ public class ZipFileProcess implements MigratableProcess {
 	private TransactionalFileOutputStream outFile;
 	private String outFileName;
 	private String inFileName;
+	private String[] args;
 
+	private volatile boolean running;
 	private volatile boolean suspending;
 
 	/**
@@ -35,6 +37,7 @@ public class ZipFileProcess implements MigratableProcess {
 					.println("usage: ZipFileProcess <inputFile> <outputFile>");
 			throw new Exception("Invalid Arguments");
 		}
+		this.args = args;
 
 		inFileName = args[0];
 		outFileName = args[1];
@@ -54,15 +57,16 @@ public class ZipFileProcess implements MigratableProcess {
 	 */
 	@Override
 	public void run() {
+		running = true;
 
 		byte[] buffer = new byte[1024];
 
 		try {
 			ZipOutputStream zout = new ZipOutputStream(outFile);
-			
+
 			fileList = new LinkedList<File>();
 			generateList(inFileName);
-			
+
 			for (Iterator<File> it = fileList.iterator(); it.hasNext()
 					&& !suspending;) {
 				File curFile = it.next();
@@ -87,6 +91,7 @@ public class ZipFileProcess implements MigratableProcess {
 			if (suspending) {
 				System.out.println("Zipping Suspended");
 			} else {
+				running = false;
 				System.out.println("Zipping Compliete!");
 			}
 
@@ -124,10 +129,21 @@ public class ZipFileProcess implements MigratableProcess {
 	 */
 	@Override
 	public void suspend() {
-		suspending = true;
-		outFile.setMigrated(true);
-		while (suspending)
-			;
+		if (running) {
+			suspending = true;
+			outFile.setMigrated(true);
+			while (suspending)
+				;
+		}
+	}
+
+	public String toString() {
+		StringBuilder sb = new StringBuilder("ZipFileProcess");
+
+		for (String argv : args) {
+			sb.append(" " + argv);
+		}
+		return sb.toString();
 	}
 
 }

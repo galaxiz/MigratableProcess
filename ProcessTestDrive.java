@@ -53,12 +53,13 @@ public class ProcessTestDrive {
 			ZipFileProcess zfp = new ZipFileProcess(test);
 			Thread testdrive = new Thread((Runnable) zfp);
 			testdrive.start();
+			System.out.println(zfp.toString());
 			Thread.sleep(500);
 
 			zfp.suspend();
 			Thread.sleep(500);
 			testdrive.stop();
-			
+
 			FileOutputStream fout = new FileOutputStream("serial");
 			ObjectOutputStream out = new ObjectOutputStream(fout);
 			out.writeObject(zfp);
@@ -66,7 +67,7 @@ public class ProcessTestDrive {
 			FileInputStream fin = new FileInputStream("serial");
 			ObjectInputStream in = new ObjectInputStream(fin);
 			zfp = (ZipFileProcess) in.readObject();
-			
+
 			Thread testdrive2 = new Thread((Runnable) zfp);
 			testdrive2.start();
 			Thread.sleep(500);
@@ -132,7 +133,7 @@ public class ProcessTestDrive {
 			System.out.println("suspended");
 			Thread.sleep(500);
 			testdrive.stop();
-			
+
 			FileOutputStream fout = new FileOutputStream("serial");
 			ObjectOutputStream out = new ObjectOutputStream(fout);
 			out.writeObject(wcp);
@@ -140,7 +141,38 @@ public class ProcessTestDrive {
 			FileInputStream fin = new FileInputStream("serial");
 			ObjectInputStream in = new ObjectInputStream(fin);
 			wcp = (WebCrawlerProcess) in.readObject();
-			
+
+			Thread testdrive2 = new Thread((Runnable) wcp);
+			System.out.println("restarted");
+			testdrive2.start();
+			Thread.sleep(500);
+		} catch (Exception e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+	}
+
+	public void testWordcount() {
+		String test[] = { "wc1.txt", "wcout2.txt" };
+		try {
+			WordcountProcess wcp = new WordcountProcess(test);
+			Thread testdrive = new Thread((Runnable) wcp);
+			testdrive.start();
+			Thread.sleep(1000);
+
+			wcp.suspend();
+			System.out.println("suspended");
+			Thread.sleep(500);
+			testdrive.stop();
+
+			FileOutputStream fout = new FileOutputStream("serial");
+			ObjectOutputStream out = new ObjectOutputStream(fout);
+			out.writeObject(wcp);
+
+			FileInputStream fin = new FileInputStream("serial");
+			ObjectInputStream in = new ObjectInputStream(fin);
+			wcp = (WordcountProcess) in.readObject();
+
 			Thread testdrive2 = new Thread((Runnable) wcp);
 			System.out.println("restarted");
 			testdrive2.start();
@@ -158,11 +190,12 @@ public class ProcessTestDrive {
 	 */
 	public static void main(String[] args) {
 		ProcessTestDrive ptd = new ProcessTestDrive();
-		// ptd.testGrep();
-		//ptd.testZip();
+		 ptd.testGrep();
+		 ptd.testZip();
 		// ptd.testSerializable();
 		// ptd.testPattern();
 		 ptd.testWebCrawler();
+		 ptd.testWordcount();
 	}
 
 }
