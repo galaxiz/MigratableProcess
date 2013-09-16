@@ -1,10 +1,16 @@
-package Processes;
+package testdriver;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+
+import processinterface.MigratableProcess;
+import testprocesses.GrepProcess;
+import testprocesses.WebCrawlerProcess;
+import testprocesses.WordcountProcess;
+import testprocesses.ZipFileProcess;
 
 
 /**
@@ -79,36 +85,36 @@ public class ProcessTestDrive {
 
 	}
 
-	public void testSerializable() {
-		String test[] = { "gig", "in.txt", "out.txt" };
-		try {
-			MigratableProcess job = new TestSerializableJob();
-			Thread testdrive = new Thread((Runnable) job);
-			testdrive.start();
-			Thread.sleep(500);
-			int i = 0;
-			while (i < 10) {
-				job.suspend();
-				Thread.sleep(500);
-
-				FileOutputStream fout = new FileOutputStream("serial");
-				ObjectOutputStream out = new ObjectOutputStream(fout);
-				out.writeObject(job);
-
-				FileInputStream fin = new FileInputStream("serial");
-				ObjectInputStream in = new ObjectInputStream(fin);
-				job = (MigratableProcess) in.readObject();
-
-				Thread testdrive2 = new Thread((Runnable) job);
-				testdrive2.start();
-				Thread.sleep(500);
-				i++;
-			}
-		} catch (Exception e) {
-			System.out.println("Exception " + e);
-			e.printStackTrace();
-		}
-	}
+//	public void testSerializable() {
+//		String test[] = { "gig", "in.txt", "out.txt" };
+//		try {
+//			MigratableProcess job = new TestSerializableJob();
+//			Thread testdrive = new Thread((Runnable) job);
+//			testdrive.start();
+//			Thread.sleep(500);
+//			int i = 0;
+//			while (i < 10) {
+//				job.suspend();
+//				Thread.sleep(500);
+//
+//				FileOutputStream fout = new FileOutputStream("serial");
+//				ObjectOutputStream out = new ObjectOutputStream(fout);
+//				out.writeObject(job);
+//
+//				FileInputStream fin = new FileInputStream("serial");
+//				ObjectInputStream in = new ObjectInputStream(fin);
+//				job = (MigratableProcess) in.readObject();
+//
+//				Thread testdrive2 = new Thread((Runnable) job);
+//				testdrive2.start();
+//				Thread.sleep(500);
+//				i++;
+//			}
+//		} catch (Exception e) {
+//			System.out.println("Exception " + e);
+//			e.printStackTrace();
+//		}
+//	}
 
 	public void testPattern() {
 		Pattern p = Pattern

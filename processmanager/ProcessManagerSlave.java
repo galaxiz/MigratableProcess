@@ -1,3 +1,4 @@
+package processmanager;
 import java.lang.*;
 import java.lang.reflect.*;
 import java.io.*;
@@ -5,7 +6,8 @@ import java.util.*;
 import java.net.*;
 import java.util.concurrent.*;
 
-import Processes.MigratableProcess;
+import processinterface.MigratableProcess;
+import processmanager.HeartbeatMsg.Type;
 
 /**
  * @author Xi Zhao

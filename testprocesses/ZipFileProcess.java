@@ -1,4 +1,6 @@
-package Processes;
+package testprocesses;
+
+import iolib.TransactionalFileOutputStream;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -10,7 +12,7 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 import java.util.zip.ZipOutputStream;
 
-import IOlib.TransactionalFileOutputStream;
+import processinterface.MigratableProcess;
 
 /**
  * This is a zip file process, which take in a file or directory and compress

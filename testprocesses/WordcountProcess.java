@@ -1,4 +1,7 @@
-package Processes;
+package testprocesses;
+
+import iolib.TransactionalFileInputStream;
+import iolib.TransactionalFileOutputStream;
 
 import java.io.DataInputStream;
 import java.io.IOException;
@@ -7,8 +10,7 @@ import java.util.HashMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import IOlib.TransactionalFileInputStream;
-import IOlib.TransactionalFileOutputStream;
+import processinterface.MigratableProcess;
 
 /**
  * This is a word count process which read from an input file and count the
