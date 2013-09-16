@@ -1,12 +1,20 @@
 package IOlib;
+
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.Serializable;
 
 /**
- * @author Shiwei Dong
+ * When a read or write is requested via the library, it should open the file,
+ * seek to the requisite location, perform the operation, and close the file
+ * again. In this way, they will maintain all the information required in order
+ * to continue performing operations on the file, even if the process is
+ * transferred to another node
  * 
+ * This class implement a migratable inputStream 
+ * 
+ * @author Shiwei Dong
  */
 public class TransactionalFileInputStream extends InputStream implements
 		Serializable {
@@ -16,7 +24,8 @@ public class TransactionalFileInputStream extends InputStream implements
 	private boolean migrated = false;
 	private transient FileInputStream inputStream;
 
-	/**
+	/** TransactionalFileInputStream(String filename)
+	 * 
 	 * @param filename
 	 */
 	public TransactionalFileInputStream(String filename) {
@@ -25,11 +34,17 @@ public class TransactionalFileInputStream extends InputStream implements
 		this.migrated = false;
 	}
 
+	/** setMigrated(boolean migrated)
+	 * 
+	 * Sep 16, 2013
+	 * 
+	 * @param migrated
+	 */
 	public void setMigrated(boolean migrated) {
 		this.migrated = migrated;
 	}
 
-	/*
+	/* 
 	 * (non-Javadoc)
 	 * 
 	 * Read one byte at a time and the read method is thread safe If migrated is
@@ -41,7 +56,7 @@ public class TransactionalFileInputStream extends InputStream implements
 		 * 1. open the file 2. do the read job 3. close the file
 		 */
 		if (migrated == true) {
-			if (inputStream != null){
+			if (inputStream != null) {
 				inputStream.close();
 				inputStream = null;
 			}

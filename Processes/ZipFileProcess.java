@@ -1,4 +1,5 @@
 package Processes;
+
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -12,11 +13,10 @@ import java.util.zip.ZipOutputStream;
 import IOlib.TransactionalFileOutputStream;
 
 /**
+ * This is a zip file process, which take in a file or directory and compress
+ * into a zip file.
  * 
- */
-
-/**
- * @author air
+ * @author Shiwei Dong
  * 
  */
 public class ZipFileProcess implements MigratableProcess {
@@ -32,7 +32,6 @@ public class ZipFileProcess implements MigratableProcess {
 
 	/**
 	 * @throws Exception
-	 * 
 	 */
 	public ZipFileProcess(String[] args) throws Exception {
 		if (args.length != 2) {
@@ -108,6 +107,15 @@ public class ZipFileProcess implements MigratableProcess {
 
 	}
 
+	/**
+	 * generateList(String startFile)
+	 * 
+	 * generate a file list from directory
+	 * 
+	 * Sep 17, 2013
+	 * 
+	 * @param startFile
+	 */
 	public void generateList(String startFile) {
 		File curFile = new File(startFile);
 		if (curFile.isDirectory()) {
@@ -128,18 +136,26 @@ public class ZipFileProcess implements MigratableProcess {
 	/*
 	 * (non-Javadoc)
 	 * 
+	 * Suspend the current running process and change it into a safe state for
+	 * migration
+	 * 
 	 * @see MigratableProcess#suspend()
 	 */
 	@Override
 	public void suspend() {
-		while (running) {
-			suspending = true;
-			outFile.setMigrated(true);
-			while (suspending)
-				;
-		}
+		suspending = true;
+		outFile.setMigrated(true);
+		while (suspending && running)
+			;
 	}
 
+	/*
+	 * (non-Javadoc)
+	 * 
+	 * A toString method is handy for debugging
+	 * 
+	 * @see java.lang.Object#toString()
+	 */
 	public String toString() {
 		StringBuilder sb = new StringBuilder("ZipFileProcess");
 

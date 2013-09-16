@@ -6,11 +6,10 @@ import java.io.ObjectOutputStream;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-/**
- * 
- */
 
 /**
+ * Just for test purpose
+ * 
  * @author Shiwei Dong
  * 
  */

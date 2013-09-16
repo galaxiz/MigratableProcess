@@ -1,4 +1,5 @@
 package Processes;
+
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -14,24 +15,30 @@ import java.util.regex.Pattern;
 import IOlib.TransactionalFileOutputStream;
 
 /**
- * This is a simple web crawler which 
- */
-
-/**
+ * This is a simple web crawler which start from a starting URL and recursively
+ * read from those URLs. And write the URLs into a file.
+ * 
  * @author Shiwei Dong
  * 
  */
 public class WebCrawlerProcess implements MigratableProcess {
 
+	// A URL queue which indicate uncrawled URLs
 	private Queue<URL> urlQueue;
+	// Use a HashMap to record URLs to avoid duplications
 	private HashMap<URL, Boolean> urlwithoutdup;
-	private TransactionalFileOutputStream outFile;
 	private String[] args;
 
-	private volatile boolean suspending;
+	private TransactionalFileOutputStream outFile;
+
+	// A running symbol is to guarantee the process in a running status and not
+	// enter a dead loop if suspended
 	private volatile boolean running;
+	private volatile boolean suspending;
 
 	/**
+	 * WebCrawlerProcess(String[] args) throws Exception
+	 * 
 	 * @throws Exception
 	 * 
 	 */
@@ -79,6 +86,8 @@ public class WebCrawlerProcess implements MigratableProcess {
 							.compile("(?i)<a([^>]+)>(.+?)</a>");
 					Pattern urlPattern = Pattern
 							.compile("\\s*(?i)href\\s*=\\s*(\"http://[^\"]*\"|http://'[^']*'|http://[^'\">\\s]+)");
+					// linkMathcer is for a link pattern, urlPatterns will be
+					// found in a matched link pattern
 					Matcher linkMatcher = linkPattern.matcher(curLine);
 
 					if (linkMatcher.find()) {
@@ -86,6 +95,8 @@ public class WebCrawlerProcess implements MigratableProcess {
 						Matcher urlMatcher = urlPattern.matcher(link);
 						if (urlMatcher.find()) {
 							String urlAddress = urlMatcher.group(1);
+							// Eliminate ' and " in the founded pattern to
+							// extract URL
 							urlAddress = urlAddress.replace("\"", "");
 							urlAddress = urlAddress.replace("'", "");
 							URL tmpURL = new URL(urlAddress);
@@ -102,13 +113,12 @@ public class WebCrawlerProcess implements MigratableProcess {
 					}
 				}
 			} catch (MalformedURLException e) {
-				// just ignore, some links just cannot be open
-				// System.out.println("Exception: " + e);
-				// e.printStackTrace();
+
 			} catch (IOException e) {
 				e.printStackTrace();
 			}
 		}
+
 		if (suspending) {
 			System.out.println("WebCrawlerProcess suspended!");
 		} else {
@@ -121,18 +131,26 @@ public class WebCrawlerProcess implements MigratableProcess {
 	/*
 	 * (non-Javadoc)
 	 * 
+	 * Suspend the current running process and change it into a safe state for
+	 * migration
+	 * 
 	 * @see MigratableProcess#suspend()
 	 */
 	@Override
 	public void suspend() {
-		while (running) {
-			suspending = true;
-			outFile.setMigrated(true);
-			while (suspending)
-				;
-		}
+		suspending = true;
+		outFile.setMigrated(true);
+		while (suspending && running)
+			;
 	}
 
+	/*
+	 * (non-Javadoc)
+	 * 
+	 * A toString method is handy for debugging
+	 * 
+	 * @see java.lang.Object#toString()
+	 */
 	public String toString() {
 		StringBuilder sb = new StringBuilder("WebCrawlerProcess");
 

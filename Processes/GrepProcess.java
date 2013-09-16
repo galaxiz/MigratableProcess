@@ -1,4 +1,5 @@
 package Processes;
+
 import java.io.BufferedReader;
 import java.io.DataInputStream;
 import java.io.EOFException;
@@ -75,13 +76,11 @@ public class GrepProcess implements MigratableProcess {
 	}
 
 	public void suspend() {
-		while (running) {
-			suspending = true;
-			inFile.setMigrated(true);
-			outFile.setMigrated(true);
-			while (suspending)
-				;
-		}
+		suspending = true;
+		inFile.setMigrated(true);
+		outFile.setMigrated(true);
+		while (suspending && running)
+			;
 	}
 
 	public String toString() {

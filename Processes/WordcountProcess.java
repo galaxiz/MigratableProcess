@@ -1,4 +1,5 @@
 package Processes;
+
 import java.io.DataInputStream;
 import java.io.IOException;
 import java.io.PrintStream;
@@ -10,23 +11,26 @@ import IOlib.TransactionalFileInputStream;
 import IOlib.TransactionalFileOutputStream;
 
 /**
+ * This is a word count process which read from an input file and count the
+ * number of each word in it.
  * 
- */
-
-/**
- * @author air
+ * @author Shiwei Dong
  * 
  */
 public class WordcountProcess implements MigratableProcess {
 
 	private TransactionalFileInputStream inFile;
 	private TransactionalFileOutputStream outFile;
+	// Each word extract from the input file will be added to this hashmap
 	private HashMap<String, Integer> wordMap;
 	private String[] args;
+
 	private volatile boolean running;
 	private volatile boolean suspending;
 
 	/**
+	 * WordcountProcess(String args[]) throws Exception
+	 * 
 	 * @throws Exception
 	 * 
 	 */
@@ -67,6 +71,7 @@ public class WordcountProcess implements MigratableProcess {
 						wordMap.put(word, 1);
 					}
 				}
+				// Use sleep to make it run longer
 				try {
 					Thread.sleep(50);
 				} catch (InterruptedException e) {
@@ -84,7 +89,6 @@ public class WordcountProcess implements MigratableProcess {
 				System.out.println("WordcountProcess completed");
 			}
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 
@@ -93,19 +97,27 @@ public class WordcountProcess implements MigratableProcess {
 	/*
 	 * (non-Javadoc)
 	 * 
+	 * Suspend the current running process and change it into a safe state for
+	 * migration
+	 * 
 	 * @see MigratableProcess#suspend()
 	 */
 	@Override
 	public void suspend() {
-		while (running) {
-			suspending = true;
-			inFile.setMigrated(true);
-			outFile.setMigrated(true);
-			while (suspending)
-				;
-		}
+		suspending = true;
+		inFile.setMigrated(true);
+		outFile.setMigrated(true);
+		while (suspending && running)
+			;
 	}
 
+	/*
+	 * (non-Javadoc)
+	 * 
+	 * A toString method is handy for debugging
+	 * 
+	 * @see java.lang.Object#toString()
+	 */
 	public String toString() {
 		StringBuilder sb = new StringBuilder("WordcountProcess");
 
