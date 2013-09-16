@@ -11,10 +11,13 @@ public class GrepProcess implements MigratableProcess {
 	private TransactionalFileInputStream inFile;
 	private TransactionalFileOutputStream outFile;
 	private String query;
+	private String[] args;
 
 	private volatile boolean suspending;
 
 	public GrepProcess(String args[]) throws Exception {
+		this.args=args;
+		
 		if (args.length != 3) {
 			System.out
 					.println("usage: GrepProcess <queryString> <inputFile> <outputFile>");
@@ -67,7 +70,12 @@ public class GrepProcess implements MigratableProcess {
 	}
 	
 	public String toString() {
-		return "1";
+		StringBuilder sb=new StringBuilder("GrepProcess");
+		
+		for(String argv:args){
+			sb.append(" "+argv);
+		}
+		return sb.toString();
 	}
 
 }
