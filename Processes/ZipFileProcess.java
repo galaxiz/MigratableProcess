@@ -1,3 +1,4 @@
+package Processes;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -7,6 +8,8 @@ import java.util.List;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 import java.util.zip.ZipOutputStream;
+
+import IOlib.TransactionalFileOutputStream;
 
 /**
  * 
@@ -129,7 +132,7 @@ public class ZipFileProcess implements MigratableProcess {
 	 */
 	@Override
 	public void suspend() {
-		if (running) {
+		while (running) {
 			suspending = true;
 			outFile.setMigrated(true);
 			while (suspending)

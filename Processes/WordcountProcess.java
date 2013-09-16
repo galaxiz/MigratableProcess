@@ -1,9 +1,13 @@
+package Processes;
 import java.io.DataInputStream;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.util.HashMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+
+import IOlib.TransactionalFileInputStream;
+import IOlib.TransactionalFileOutputStream;
 
 /**
  * 
@@ -93,7 +97,7 @@ public class WordcountProcess implements MigratableProcess {
 	 */
 	@Override
 	public void suspend() {
-		if (running) {
+		while (running) {
 			suspending = true;
 			inFile.setMigrated(true);
 			outFile.setMigrated(true);

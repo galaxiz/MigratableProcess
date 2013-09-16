@@ -1,3 +1,4 @@
+package Processes;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -9,6 +10,8 @@ import java.util.LinkedList;
 import java.util.Queue;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+
+import IOlib.TransactionalFileOutputStream;
 
 /**
  * This is a simple web crawler which 
@@ -122,7 +125,7 @@ public class WebCrawlerProcess implements MigratableProcess {
 	 */
 	@Override
 	public void suspend() {
-		if (running) {
+		while (running) {
 			suspending = true;
 			outFile.setMigrated(true);
 			while (suspending)

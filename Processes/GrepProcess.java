@@ -1,3 +1,4 @@
+package Processes;
 import java.io.BufferedReader;
 import java.io.DataInputStream;
 import java.io.EOFException;
@@ -5,6 +6,9 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintStream;
 import java.io.PrintWriter;
+
+import IOlib.TransactionalFileInputStream;
+import IOlib.TransactionalFileOutputStream;
 
 public class GrepProcess implements MigratableProcess {
 	private TransactionalFileInputStream inFile;
@@ -71,7 +75,7 @@ public class GrepProcess implements MigratableProcess {
 	}
 
 	public void suspend() {
-		if (running) {
+		while (running) {
 			suspending = true;
 			inFile.setMigrated(true);
 			outFile.setMigrated(true);
