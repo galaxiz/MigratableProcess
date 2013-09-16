@@ -1,7 +1,11 @@
 package Processes;
 import java.io.Serializable;
 
-
+/**
+ * 
+ * @author Xi Zhao
+ *
+ */
 public class TestSerializableJob implements MigratableProcess{
 	volatile boolean suspending=false;
 	int i;
