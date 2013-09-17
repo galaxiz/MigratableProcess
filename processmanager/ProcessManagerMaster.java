@@ -102,7 +102,7 @@ public class ProcessManagerMaster extends ProcessManager {
 				line = br.readLine();
 
 				if (line.equals("exit")) {
-					break;
+					System.exit(0);
 				} else if (line.equals("ps")) {
 					ps();
 				} else {
@@ -295,18 +295,17 @@ public class ProcessManagerMaster extends ProcessManager {
 		/*
 		 * TODO: currently create job to first host, to see the effect of
 		 * balancing.
-		 */
-
-		// HostInfo randHostInfo=hostInfoList.get(new
-		// Random().nextInt(hostInfoList.size()));
+		 */		
 		try {
-			HostInfo randHostInfo = hostInfoList.get(0);
+			HostInfo randHostInfo=hostInfoList.get(new
+			Random().nextInt(hostInfoList.size()));
+			//HostInfo randHostInfo = hostInfoList.get(0);
 			sendObjectTo(randHostInfo.host, randHostInfo.port, cm);
 
 			System.out.println("Try to create job on slave node: "
 					+ randHostInfo.host + ":" + randHostInfo.port);
 		} catch (Exception e) {
-			e.printStackTrace();
+			System.out.println("No slave node usable.");
 		}
 
 		hostInfoMutex.release();
