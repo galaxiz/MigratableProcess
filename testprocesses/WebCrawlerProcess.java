@@ -107,8 +107,8 @@ public class WebCrawlerProcess implements MigratableProcess {
 							else
 								urlwithoutdup.put(tmpURL, true);
 
-							System.out.println("Found a new link, the URL is: "
-									+ urlAddress);
+//							System.out.println("Found a new link, the URL is: "
+//									+ urlAddress);
 							urlQueue.add(tmpURL);
 							out.println(tmpURL.toString());
 						}
@@ -117,6 +117,7 @@ public class WebCrawlerProcess implements MigratableProcess {
 			} catch (MalformedURLException e) {
 
 			} catch (IOException e) {
+				System.out.println("WebCrawlerProcess: IOException: "+e);
 				e.printStackTrace();
 			}
 		}

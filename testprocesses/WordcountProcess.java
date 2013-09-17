@@ -91,6 +91,7 @@ public class WordcountProcess implements MigratableProcess {
 				System.out.println("WordcountProcess completed");
 			}
 		} catch (IOException e) {
+			System.out.println("WordcountProcess: IOException: "+e);
 			e.printStackTrace();
 		}
 

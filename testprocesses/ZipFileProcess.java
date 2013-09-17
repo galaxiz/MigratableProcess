@@ -103,7 +103,7 @@ public class ZipFileProcess implements MigratableProcess {
 
 			zout.finish();
 		} catch (IOException e) {
-			System.out.println("Exception" + e);
+			System.out.println("ZipFileProcess Exception" + e);
 			e.printStackTrace();
 		}
 
