@@ -1,4 +1,5 @@
 package processmanager;
+
 import java.lang.*;
 import java.lang.reflect.*;
 import java.io.*;
@@ -9,6 +10,14 @@ import java.util.concurrent.*;
 import processmanager.CommandMsg.Type;
 
 /**
+ * class ProcessManagerMaster
+ * 
+ * Master node: 
+ * check status of slave nodes,
+ * send command to slave nodes, 
+ * balance workload on slave nodes, 
+ * user prompt
+ * 
  * @author Xi Zhao
  */
 public class ProcessManagerMaster extends ProcessManager {
@@ -25,7 +34,7 @@ public class ProcessManagerMaster extends ProcessManager {
 	/*
 	 * period to call checkHeartbeat: milliseconds.
 	 */
-	final int MasterPeriod = 15000;
+	final int MasterPeriod = 12000;
 
 	public ProcessManagerMaster() {
 		hostInfoList = new ArrayList<HostInfo>();
@@ -96,11 +105,10 @@ public class ProcessManagerMaster extends ProcessManager {
 					break;
 				} else if (line.equals("ps")) {
 					ps();
-				} else {					
-					if(line.trim().split(" +")[0].equals("kill")){
+				} else {
+					if (line.trim().split(" +")[0].equals("kill")) {
 						killJob(line);
-					}
-					else {
+					} else {
 						// default: create a new job with the command.
 						// TODO: add more information about this job.
 						createJob(line);
@@ -164,26 +172,31 @@ public class ProcessManagerMaster extends ProcessManager {
 						System.out.println("\nRetrying acquire mutex.");
 					}
 				}
-				
-				boolean hostExists=false;
 
-				for (Iterator<HostInfo> it = hostInfoList.iterator(); it
-						.hasNext();) {
-					HostInfo hostp = it.next();
+				boolean hostExists = false;
 
-					if (hostp.host.equals(ip) && hostp.port == port) {
-						// Find the right HostInfo object.
-						hostp.jobCount = beat.jobCount;
-						hostp.lastTime = System.currentTimeMillis();
-						hostp.jobs = beat.jobs;
-						
-						hostExists=true;
-						break;
+				try {
+					for (Iterator<HostInfo> it = hostInfoList.iterator(); it
+							.hasNext();) {
+						HostInfo hostp = it.next();
+
+						if (hostp.host.equals(ip) && hostp.port == port) {
+							// Find the right HostInfo object.
+							hostp.jobCount = beat.jobCount;
+							hostp.lastTime = System.currentTimeMillis();
+							hostp.jobs = beat.jobs;
+
+							hostExists = true;
+							break;
+						}
 					}
+				} catch (Exception e) {
+					e.printStackTrace();
 				}
 				hostInfoMutex.release();
 
-				if(hostExists==true) break;
+				if (hostExists == true)
+					break;
 
 			case reg:
 				/*
@@ -196,8 +209,7 @@ public class ProcessManagerMaster extends ProcessManager {
 				hi.jobCount = 0;// initial job count
 				hi.lastTime = System.currentTimeMillis();
 				hi.jobs = new ArrayList<String>();
-				hi.id=globalID++;
-				
+				hi.id = globalID++;
 
 				hostInfoMutex.acquire();
 				hostInfoList.add(hi);
@@ -232,6 +244,10 @@ public class ProcessManagerMaster extends ProcessManager {
 		return true;
 	}
 
+	/**
+	 * implementation of builtin command "ps" show the info of all jobs on all
+	 * slave nodes.
+	 */
 	void ps() {
 		while (true) {
 			try {
@@ -241,16 +257,27 @@ public class ProcessManagerMaster extends ProcessManager {
 				System.out.println("\nRetrying to acquire mutex. (promp)");
 			}
 		}
-		for (HostInfo hostp : hostInfoList) {
-			System.out.println("ID:"+hostp.id.toString()+" "+hostp.host + ":" + hostp.port.toString()
-					+ "--> JOB COUNT:" + hostp.jobCount.toString());
-			for (String commandLine : hostp.jobs) {
-				System.out.println("\t" + commandLine);
+		
+		try {
+			for (HostInfo hostp : hostInfoList) {
+				System.out.println("ID:" + hostp.id.toString() + " "
+						+ hostp.host + ":" + hostp.port.toString()
+						+ "--> JOB COUNT:" + hostp.jobCount.toString());
+				for (String commandLine : hostp.jobs) {
+					System.out.println("\t" + commandLine);
+				}
 			}
+		} catch (Exception e) {
+			e.printStackTrace();
 		}
 		hostInfoMutex.release();
 	}
 
+	/**
+	 * Send create job command to slave nodes
+	 * 
+	 * @param commandLine
+	 */
 	void createJob(String commandLine) {
 		CommandMsg cm = new CommandMsg();
 		cm.type = CommandMsg.Type.newJob;
@@ -272,16 +299,24 @@ public class ProcessManagerMaster extends ProcessManager {
 
 		// HostInfo randHostInfo=hostInfoList.get(new
 		// Random().nextInt(hostInfoList.size()));
-		HostInfo randHostInfo = hostInfoList.get(0);
-		sendObjectTo(randHostInfo.host, randHostInfo.port, cm);
+		try {
+			HostInfo randHostInfo = hostInfoList.get(0);
+			sendObjectTo(randHostInfo.host, randHostInfo.port, cm);
 
-		System.out.println("Try to create job on slave node: "
-				+ randHostInfo.host + ":" + randHostInfo.port);
+			System.out.println("Try to create job on slave node: "
+					+ randHostInfo.host + ":" + randHostInfo.port);
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
 
 		hostInfoMutex.release();
 	}
-	
-	void checkAliveSlaves(){
+
+	/**
+	 * Check status of slave nodes Remove dead slave nodes whose heartbeats are
+	 * not received for a certain period of time.
+	 */
+	void checkAliveSlaves() {
 		long curTime = System.currentTimeMillis();
 
 		/*
@@ -298,22 +333,32 @@ public class ProcessManagerMaster extends ProcessManager {
 			}
 		}
 
-		// check each host that how long has passed since last heartbeat came.
-		for (Iterator<HostInfo> it = hostInfoList.iterator(); it.hasNext();) {
-			HostInfo hostp = it.next();
-			if (curTime - hostp.lastTime > MasterPeriod) {
-				// TODO: log functions
-				// Remove slave node if it times out because of lack of
-				// heartbeat.
-				System.out.println("\n" + hostp.host + ":" + hostp.port
-						+ " (slave) is unreachable. Removing...");
-				it.remove();
+		try {
+			// check each host that how long has passed since last heartbeat
+			// came.
+			for (Iterator<HostInfo> it = hostInfoList.iterator(); it.hasNext();) {
+				HostInfo hostp = it.next();
+				if (curTime - hostp.lastTime > MasterPeriod) {
+					// TODO: log functions
+					// Remove slave node if it times out because of lack of
+					// heartbeat.
+					System.out.println("\n" + hostp.host + ":" + hostp.port
+							+ " (slave) is unreachable. Removing...");
+					it.remove();
+				}
 			}
+		} catch (Exception e) {
+			e.printStackTrace();
 		}
+		
 		hostInfoMutex.release();
 	}
 
-	void balanceWorkload(){
+	/**
+	 * Check workloads of different slave nodes and send command to balance the
+	 * work
+	 */
+	void balanceWorkload() {
 		while (true) {
 			try {
 				hostInfoMutex.acquire();
@@ -332,72 +377,80 @@ public class ProcessManagerMaster extends ProcessManager {
 		 * future work.
 		 * 
 		 * TODO: multiple job balancing.
-		 */
-		int minCount = 9999, maxCount = -1;
-		HostInfo minHost = null, maxHost = null;
+		 */		
+		try {
+			int minCount = 9999, maxCount = -1;
+			HostInfo minHost = null, maxHost = null;
 
-		for (Iterator<HostInfo> it = hostInfoList.iterator(); it.hasNext();) {
-			HostInfo hostp = it.next();
+			for (Iterator<HostInfo> it = hostInfoList.iterator(); it.hasNext();) {
+				HostInfo hostp = it.next();
 
-			if (hostp.jobCount > maxCount) {
-				maxCount = hostp.jobCount;
-				maxHost = hostp;
+				if (hostp.jobCount > maxCount) {
+					maxCount = hostp.jobCount;
+					maxHost = hostp;
+				}
+				if (hostp.jobCount < minCount) {
+					minCount = hostp.jobCount;
+					minHost = hostp;
+				}
 			}
-			if (hostp.jobCount < minCount) {
-				minCount = hostp.jobCount;
-				minHost = hostp;
+
+			if (maxCount - minCount >= 2) {
+				/*
+				 * Send command to "minHost" slave node to ask it to request a
+				 * job from maxHost.
+				 * 
+				 * Master doesn't actively change the workload information. It
+				 * simply wait for the result from slave nodes.
+				 */
+				CommandMsg cmsg = new CommandMsg();
+				cmsg.type = CommandMsg.Type.requestJob;
+				cmsg.args = maxHost.host + ":" + maxHost.port.toString();
+
+				sendObjectTo(minHost.host, minHost.port, cmsg);
+
+				/*
+				 * Do not modify jobCount until they heartbeat to master.
+				 * 
+				 * Warning: for multiple job balancing, this could cause it to
+				 * try to balance for ever.
+				 */
+				// minHost.jobCount++;
+				// maxHost.jobCount--;
 			}
-		}
-
-		if (maxCount - minCount >= 2) {
-			/*
-			 * Send command to "minHost" slave node to ask it to request a job
-			 * from maxHost.
-			 * 
-			 * Master doesn't actively change the workload information. It
-			 * simply wait for the result from slave nodes.
-			 */
-			CommandMsg cmsg = new CommandMsg();
-			cmsg.type = CommandMsg.Type.requestJob;
-			cmsg.args = maxHost.host + ":" + maxHost.port.toString();
-
-			sendObjectTo(minHost.host, minHost.port, cmsg);
-
-			/*
-			 * Do not modify jobCount until they heartbeat to master.
-			 * 
-			 * Warning: for multiple job balancing, this could cause it to try
-			 * to balance for ever.
-			 */
-			// minHost.jobCount++;
-			// maxHost.jobCount--;
+		} catch (Exception e) {
+			e.printStackTrace();
 		}
 
 		hostInfoMutex.release();
 	}
-	
-	void killJob(String line){
-		String[] infos=line.trim().split(" +");
-		
+
+	/**
+	 * Send command to kill job on slave node
+	 * 
+	 * @param line
+	 */
+	void killJob(String line) {
+		String[] infos = line.trim().split(" +");
+
 		Integer hostId;
 		Integer jobId;
-		
-		try{
-			if(infos.length!=3){
+
+		try {
+			if (infos.length != 3) {
 				throw new Exception();
 			}
-			hostId=Integer.parseInt(infos[1]);
-			jobId=Integer.parseInt(infos[2]);
-		}
-		catch(Exception e){
+			hostId = Integer.parseInt(infos[1]);
+			jobId = Integer.parseInt(infos[2]);
+		} catch (Exception e) {
 			System.out.println("Usage: kill [host id] [job id]");
 			return;
 		}
-		
-		CommandMsg cmsg=new CommandMsg();
-		cmsg.type=CommandMsg.Type.killJob;
-		cmsg.args=jobId.toString();
-		
+
+		CommandMsg cmsg = new CommandMsg();
+		cmsg.type = CommandMsg.Type.killJob;
+		cmsg.args = jobId.toString();
+
 		while (true) {
 			try {
 				hostInfoMutex.acquire();
@@ -407,18 +460,23 @@ public class ProcessManagerMaster extends ProcessManager {
 				System.out.println("\nRetrying to acquire mutex.");
 			}
 		}
-		boolean hostExists=false;
+
+		boolean hostExists = false;
 		
-		for(HostInfo hostp:hostInfoList){
-			if(hostp.id==hostId){
-				hostExists=true;
-				sendObjectTo(hostp.host,hostp.port,cmsg);
+		try {		
+			for (HostInfo hostp : hostInfoList) {
+				if (hostp.id == hostId) {
+					hostExists = true;
+					sendObjectTo(hostp.host, hostp.port, cmsg);
+				}
 			}
+		} catch (Exception e) {
+			e.printStackTrace();
 		}
-		
+
 		hostInfoMutex.release();
-		
-		if(hostExists==false){
+
+		if (hostExists == false) {
 			System.out.println("Host not exists.");
 		}
 	}

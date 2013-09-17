@@ -1,4 +1,5 @@
 package processmanager;
+
 import java.lang.*;
 import java.lang.reflect.*;
 import java.io.*;
@@ -10,6 +11,13 @@ import processinterface.MigratableProcess;
 import processmanager.HeartbeatMsg.Type;
 
 /**
+ * class ProcessManagerSlave
+ * 
+ * slave node which actually executes jobs and receiving command from master
+ * node
+ * 
+ * send heartbeat to master node periodically
+ * 
  * @author Xi Zhao
  */
 public class ProcessManagerSlave extends ProcessManager {
@@ -48,7 +56,7 @@ public class ProcessManagerSlave extends ProcessManager {
 		listenerPort = 9001 + new Random().nextInt(100);
 	}
 
-	/*
+	/**
 	 * slave register this slave node to master node, create a command listener
 	 * and create a heartbeat sender which sends heartbeat periodically.
 	 */
@@ -82,7 +90,9 @@ public class ProcessManagerSlave extends ProcessManager {
 		}, 0, SlavePeriod);
 	}
 
-	// private functions
+	/*
+	 * private functions
+	 */
 	boolean registerSlave(String host) {
 		HeartbeatMsg hmsg = new HeartbeatMsg();
 		hmsg.type = HeartbeatMsg.Type.reg;
@@ -133,6 +143,13 @@ public class ProcessManagerSlave extends ProcessManager {
 		}
 	}
 
+	/*
+	 * send heartbeat to master node.
+	 * 
+	 * This function should be delayed, so it should not acquire the mutex as
+	 * well. Or it may be blocked. So it only reads the information in
+	 * jobInfoList, it doesn't modify it.
+	 */
 	void heartbeatSender() {
 		HeartbeatMsg beat = new HeartbeatMsg();
 		beat.type = HeartbeatMsg.Type.normal;
@@ -148,6 +165,11 @@ public class ProcessManagerSlave extends ProcessManager {
 		sendObjectTo(host, 9000, beat);
 	}
 
+	/**
+	 * May need to remove finished jobs, so it needs to acquire mutex.
+	 * 
+	 * This part of work is separated from heartbeat sender.
+	 */
 	void jobDoneInfoSender() {
 		ArrayList<HeartbeatMsg> beatList = new ArrayList<HeartbeatMsg>();
 
@@ -164,22 +186,26 @@ public class ProcessManagerSlave extends ProcessManager {
 			}
 		}
 
-		for (Iterator<JobInfo> it = jobInfoList.iterator(); it.hasNext();) {
-			JobInfo jobInfop = it.next();
-			if (jobInfop.thread.isAlive() == false) {
-				System.out.println("Job: " + jobInfop.job.toString()
-						+ " has finished.");
+		try{
+			for (Iterator<JobInfo> it = jobInfoList.iterator(); it.hasNext();) {
+				JobInfo jobInfop = it.next();
+				if (jobInfop.thread.isAlive() == false) {
+					System.out.println("Job: " + jobInfop.job.toString()
+							+ " has finished.");
 
-				HeartbeatMsg beatTmp = new HeartbeatMsg();
-				beatTmp.type = HeartbeatMsg.Type.done;
-				beatTmp.port = listenerPort;
-				beatTmp.jobs = new ArrayList<String>();
-				beatTmp.jobs.add(jobInfop.job.toString() + " finished.");
+					HeartbeatMsg beatTmp = new HeartbeatMsg();
+					beatTmp.type = HeartbeatMsg.Type.done;
+					beatTmp.port = listenerPort;
+					beatTmp.jobs = new ArrayList<String>();
+					beatTmp.jobs.add(jobInfop.job.toString() + " finished.");
 
-				beatList.add(beatTmp);
+					beatList.add(beatTmp);
 
-				it.remove();
+					it.remove();
+				}
 			}
+		} catch (Exception e){
+			e.printStackTrace();
 		}
 
 		jobInfoMutex.release();
@@ -190,6 +216,11 @@ public class ProcessManagerSlave extends ProcessManager {
 		}
 	}
 
+	/**
+	 * Handle different kind of command from command message.
+	 * 
+	 * @param socket
+	 */
 	void commandHandler(Socket socket) {
 		try {
 			ObjectInputStream in = new ObjectInputStream(
@@ -228,14 +259,18 @@ public class ProcessManagerSlave extends ProcessManager {
 			}
 		}
 
-		JobInfo jobInfo = jobInfoList.get(new Random().nextInt(jobInfoList
-				.size()));
+		try {
+			JobInfo jobInfo = jobInfoList.get(new Random().nextInt(jobInfoList
+					.size()));
 
-		System.out.println("Sending job...");
-		if (sendJob(socket, jobInfo)) {
-			jobInfoList.remove(jobInfo);
+			System.out.println("Sending job...");
+			if (sendJob(socket, jobInfo)) {
+				jobInfoList.remove(jobInfo);
+			}
+			System.out.println("Sending job done.");
+		} catch (Exception e) {
+			System.out.println("No job to send.");
 		}
-		System.out.println("Sending job done.");
 		jobInfoMutex.release();
 	}
 
@@ -296,19 +331,23 @@ public class ProcessManagerSlave extends ProcessManager {
 				System.out.println("Retrying to acquire mutex to send job.");
 			}
 		}
-		
-		boolean exists=false;
 
-		for (JobInfo jobp : jobInfoList) {
-			if (jobp.id == jobId) {
-				// TODO: may cause deadlock.
-				exists=true;
-				
-				jobString = jobp.job.toString();
-				jobp.job.suspend();
-				jobInfoList.remove(jobp);
-				break;
+		boolean exists = false;
+
+		try {
+			for (JobInfo jobp : jobInfoList) {
+				if (jobp.id == jobId) {
+					// TODO: may cause deadlock.
+					exists = true;
+
+					jobString = jobp.job.toString();
+					jobp.job.suspend();
+					jobInfoList.remove(jobp);
+					break;
+				}
 			}
+		} catch (Exception e) {
+			e.printStackTrace();
 		}
 
 		jobInfoMutex.release();
@@ -317,16 +356,22 @@ public class ProcessManagerSlave extends ProcessManager {
 		beat.type = HeartbeatMsg.Type.done;
 		beat.port = listenerPort;
 		beat.jobs = new ArrayList<String>();
-		if(exists){
+		if (exists) {
 			beat.jobs.add(jobString + " was killed.");
-		}
-		else {
+		} else {
 			beat.jobs.add("Job not found.");
 		}
 
 		sendObjectTo(host, 9000, beat);
 	}
 
+	/**
+	 * Create a new job
+	 * 
+	 * @param command
+	 * @param args
+	 * @return
+	 */
 	boolean newJob(String command, String args[]) {
 		try {
 			JobInfo jobInfo = new JobInfo();
@@ -358,6 +403,13 @@ public class ProcessManagerSlave extends ProcessManager {
 		return true;
 	}
 
+	/**
+	 * Send job to another slave node.
+	 * 
+	 * @param socket
+	 * @param jobInfo
+	 * @return
+	 */
 	boolean sendJob(Socket socket, JobInfo jobInfo) {
 		/*
 		 * Suspend job
@@ -380,6 +432,12 @@ public class ProcessManagerSlave extends ProcessManager {
 		return true;
 	}
 
+	/**
+	 * Resume job received from another slave node.
+	 * 
+	 * @param job
+	 * @return
+	 */
 	boolean resumeJob(MigratableProcess job) {
 		JobInfo jobInfo = new JobInfo();
 

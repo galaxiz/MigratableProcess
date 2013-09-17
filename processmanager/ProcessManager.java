@@ -1,4 +1,5 @@
 package processmanager;
+
 import java.lang.*;
 import java.lang.reflect.*;
 import java.io.*;
@@ -6,12 +7,16 @@ import java.util.*;
 import java.net.*;
 
 /**
+ * class ProcessManager
+ * 
+ * start process manager master or process manager slave
+ * 
  * @author Xi Zhao
  * 
  */
 public class ProcessManager {
-	Integer globalID=0;
-	
+	Integer globalID = 0;
+
 	// static entry point
 	public static void main(String args[]) {
 		if (args.length != 0) {
