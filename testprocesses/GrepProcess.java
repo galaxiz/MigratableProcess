@@ -56,7 +56,7 @@ public class GrepProcess implements MigratableProcess {
 				// Make grep take longer so that we don't require extremely
 				// large files for interesting results
 				try {
-					Thread.sleep(1 * 1000);
+					Thread.sleep(1 * 5);
 				} catch (InterruptedException e) {
 					// ignore it
 				}
@@ -64,7 +64,7 @@ public class GrepProcess implements MigratableProcess {
 		} catch (EOFException e) {
 			// End of File
 		} catch (IOException e) {
-			System.out.println("GrepProcess: Error: " + e);
+			System.out.println("GrepProcess: IO Error: " + e);
 		}
 
 		if (suspending) {
