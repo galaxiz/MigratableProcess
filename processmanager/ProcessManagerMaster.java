@@ -39,6 +39,8 @@ public class ProcessManagerMaster extends ProcessManager {
 	public ProcessManagerMaster() {
 		hostInfoList = new ArrayList<HostInfo>();
 		hostInfoMutex = new Semaphore(1);
+		
+		globalMutex=new Semaphore(1);
 	}
 
 	/**
@@ -209,7 +211,19 @@ public class ProcessManagerMaster extends ProcessManager {
 				hi.jobCount = 0;// initial job count
 				hi.lastTime = System.currentTimeMillis();
 				hi.jobs = new ArrayList<String>();
+				
+				while (true) {
+					try {
+						globalMutex.acquire();
+						break;
+					} catch (Exception e) {
+						System.out.println("Retrying...");
+					}
+				}
+				
 				hi.id = globalID++;
+				
+				globalMutex.release();
 
 				hostInfoMutex.acquire();
 				hostInfoList.add(hi);

@@ -4,6 +4,7 @@ import java.lang.*;
 import java.lang.reflect.*;
 import java.io.*;
 import java.util.*;
+import java.util.concurrent.Semaphore;
 import java.net.*;
 
 /**
@@ -16,6 +17,9 @@ import java.net.*;
  */
 public class ProcessManager {
 	Integer globalID = 0;
+	
+	//lock for globalId
+	Semaphore globalMutex;
 
 	// static entry point
 	public static void main(String args[]) {

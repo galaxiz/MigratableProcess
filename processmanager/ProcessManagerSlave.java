@@ -48,6 +48,7 @@ public class ProcessManagerSlave extends ProcessManager {
 	public ProcessManagerSlave() {
 		jobInfoList = new ArrayList<JobInfo>();
 		jobInfoMutex = new Semaphore(1);
+		globalMutex = new Semaphore(1);
 
 		/*
 		 * Randomly choose a port number for command listener. This enables
@@ -186,7 +187,7 @@ public class ProcessManagerSlave extends ProcessManager {
 			}
 		}
 
-		try{
+		try {
 			for (Iterator<JobInfo> it = jobInfoList.iterator(); it.hasNext();) {
 				JobInfo jobInfop = it.next();
 				if (jobInfop.thread.isAlive() == false) {
@@ -204,7 +205,7 @@ public class ProcessManagerSlave extends ProcessManager {
 					it.remove();
 				}
 			}
-		} catch (Exception e){
+		} catch (Exception e) {
 			e.printStackTrace();
 		}
 
@@ -383,7 +384,19 @@ public class ProcessManagerSlave extends ProcessManager {
 			jobInfo.job = job;
 			jobInfo.thread = new Thread((Runnable) job);
 			jobInfo.commandLine = job.toString();
+
+			while (true) {
+				try {
+					globalMutex.acquire();
+					break;
+				} catch (Exception e) {
+					System.out.println("Retrying...");
+				}
+			}
+
 			jobInfo.id = globalID++;
+
+			globalMutex.release();
 
 			jobInfoMutex.acquire();
 			jobInfoList.add(jobInfo);
@@ -444,7 +457,19 @@ public class ProcessManagerSlave extends ProcessManager {
 		jobInfo.job = job;
 		jobInfo.thread = new Thread((Runnable) job);
 		jobInfo.commandLine = job.toString();
+
+		while (true) {
+			try {
+				globalMutex.acquire();
+				break;
+			} catch (Exception e) {
+				System.out.println("Retrying...");
+			}
+		}
+
 		jobInfo.id = globalID++;
+
+		globalMutex.release();
 
 		while (true) {
 			try {
