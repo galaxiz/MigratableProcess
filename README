@@ -1,10 +1,9 @@
 15640 Distributed System - Project 1 Migratable Process
 
 Deliverables:
-(i) a framework for migratable processes; 
-(ii) a report which documents your design, implementation and testing, and tells us how to build and test yourproject; and 
-(iii) test/example code, designed to show off the general-purpose and flexible nature of yourdesign, that illustrates your framework working with at least two different migratable object types
+1. a framework for migratable processes; 
+2. a report which documents your design, implementation and testing, and tells us how to build and test yourproject; and 
+3. test/example code, designed to show off the general-purpose and flexible nature of yourdesign, that illustrates your framework working with at least two different migratable object types
 
 Team members:
-Xi Zhao (xizhao)
-Shiwei Dong (shiweid)
+Xi Zhao, Shiwei Dong
