@@ -1,16 +1,9 @@
-15640 Distributed System Project 1 Migratable Work
+15640 Distributed System - Project 1 Migratable Process
 
 Deliverables:
 (i) a framework for migratable processes; 
-(ii) areport which documents your design, implementation and testing, and tells us how to build and test yourproject; and 
+(ii) a report which documents your design, implementation and testing, and tells us how to build and test yourproject; and 
 (iii) test/example code, designed to show off the general-purpose and flexible nature of yourdesign, that illustrates your framework working with at least two different migratable object types
-
-Report:
-I. Clearly explain your design and illustrate its use, being sure to highlight any special featuresor abilities
-II. Describe the portions of the design that are correctly implemented, that have bugs, and thatremain unimplemented.
-III. Tell us how to cleanly build, deploy, and run your project
-IV. Highlight any dependencies and software or system requirements.
-V. Tell us how to run and test your framework with your two examples.
 
 Team members:
 Xi Zhao (xizhao)
